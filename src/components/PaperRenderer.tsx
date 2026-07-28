@@ -1,0 +1,197 @@
+import type React from "react";
+import type { GeneratedSet } from "@/lib/paper.functions";
+import { getPattern, paperInstruction, paperTime, type PatternSlot } from "@/lib/paper-pattern";
+import logo from "@/assets/svv-logo.png.asset.json";
+
+export type PaperMeta = {
+  courseName: string;
+  courseCode: string;
+  className: string;
+  semester: string;
+  academicYear: string;
+  date: string;
+  marks: 20 | 30;
+  department?: string;
+};
+
+export type DiagramMap = Record<string, string>; // question key -> image data url
+
+export function PaperRenderer({
+  meta,
+  set,
+  diagrams = {},
+  signatureUrl,
+  showAttachHint = false,
+  setLabel,
+  onAttachClick,
+}: {
+  meta: PaperMeta;
+  set: GeneratedSet;
+  diagrams?: DiagramMap;
+  signatureUrl?: string | null;
+  showAttachHint?: boolean;
+  setLabel?: string;
+  onAttachClick?: (key: string) => void;
+}) {
+  const pattern = getPattern(meta.marks);
+  const dept = meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE";
+
+  // Group by qNo for OR rendering
+  const grouped = groupByQ(pattern);
+
+  return (
+    <div className="paper-page p-10 max-w-[820px] mx-auto shadow border border-border">
+      {/* Header block */}
+      <div className="flex items-start gap-4 border-b border-black pb-4 mb-4">
+        <img src={logo.url} alt="Somaiya" className="w-20 h-20 object-contain" />
+        <div className="flex-1 text-center">
+          <div className="text-[10pt] tracking-widest">SOMAIYA VIDYAVIHAR UNIVERSITY</div>
+          <div className="text-[14pt] font-bold">K J Somaiya Institute of Technology</div>
+          <div className="text-[10pt] italic">An Autonomous Institute permanently affiliated to University of Mumbai.</div>
+          <div className="text-[11pt] mt-2">Academic Year {meta.academicYear}</div>
+          <div className="text-[12pt] font-bold mt-1">{dept}</div>
+          {setLabel && <div className="text-[10pt] mt-1 text-brand font-semibold">{setLabel}</div>}
+        </div>
+      </div>
+
+      {/* Meta table */}
+      <table className="mb-3">
+        <tbody>
+          <tr>
+            <td><b>Class:</b> {meta.className}</td>
+            <td><b>Semester:</b> {meta.semester}</td>
+            <td colSpan={2}><b>Date:</b> {meta.date}</td>
+          </tr>
+          <tr>
+            <td colSpan={2}><b>Course Name:</b> {meta.courseName}</td>
+            <td colSpan={2}><b>Marks:</b> {meta.marks}</td>
+          </tr>
+          <tr>
+            <td colSpan={2}><b>Course Code:</b> {meta.courseCode}</td>
+            <td colSpan={2}><b>Time:</b> {paperTime(meta.marks)}</td>
+          </tr>
+          <tr>
+            <td colSpan={4}><b>Note:</b> {paperInstruction(meta.marks)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Questions table */}
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: "8%" }}>Q. No.</th>
+            <th style={{ width: "8%" }}>Sub Q.</th>
+            <th>Statement of Question</th>
+            <th style={{ width: "8%" }}>Marks</th>
+            <th style={{ width: "8%" }}>CO</th>
+            <th style={{ width: "10%" }}>BT Level</th>
+          </tr>
+        </thead>
+        <tbody>
+          {grouped.map((group) => (
+            <RenderGroup
+              key={group.qNo}
+              group={group}
+              questions={set.questions}
+              diagrams={diagrams}
+              showAttachHint={showAttachHint}
+              onAttachClick={onAttachClick}
+            />
+          ))}
+        </tbody>
+      </table>
+
+      {/* Course outcomes + signatures */}
+      <div className="mt-6 text-[11pt]">
+        <div><b>Course Outcomes:</b> {uniqCOs(set).join(", ")}</div>
+      </div>
+      <div className="mt-8 flex justify-between items-end text-[11pt]">
+        <div>
+          <div className="border-t border-black pt-1 w-56 text-center">DQC Member</div>
+          {signatureUrl && (
+            <div className="mt-2">
+              <div className="text-xs text-gray-600">DQC Verified</div>
+              <img src={signatureUrl} alt="DQC signature" className="h-14 object-contain" />
+            </div>
+          )}
+        </div>
+        <div>
+          <div>Verified By: <b>Dr. Milind Nemade</b></div>
+          <div className="border-t border-black pt-1 w-56 text-center mt-1">Head of the Department</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type QGroup = { qNo: string; slots: PatternSlot[] };
+
+function groupByQ(pattern: PatternSlot[]): QGroup[] {
+  const map = new Map<string, PatternSlot[]>();
+  for (const p of pattern) {
+    if (!map.has(p.qNo)) map.set(p.qNo, []);
+    map.get(p.qNo)!.push(p);
+  }
+  return Array.from(map.entries()).map(([qNo, slots]) => ({ qNo, slots }));
+}
+
+function RenderGroup({
+  group,
+  questions,
+  diagrams,
+  showAttachHint,
+  onAttachClick,
+}: {
+  group: QGroup;
+  questions: GeneratedSet["questions"];
+  diagrams: DiagramMap;
+  showAttachHint?: boolean;
+  onAttachClick?: (key: string) => void;
+}) {
+  const rows: React.ReactElement[] = [];
+  group.slots.forEach((slot, idx) => {
+    if (slot.isOr && idx > 0) {
+      rows.push(
+        <tr key={`${slot.key}-or`}>
+          <td>{slot.qNo}</td>
+          <td></td>
+          <td className="text-center italic"><b>OR</b></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>,
+      );
+    }
+    const q = questions.find((x) => x.key === slot.key);
+    const diag = diagrams[slot.key];
+    rows.push(
+      <tr key={slot.key}>
+        <td>{idx === 0 ? slot.qNo : ""}</td>
+        <td>{slot.subQ}</td>
+        <td>
+          <div>{q?.text ?? ""}</div>
+          {diag ? (
+            <img src={diag} alt="diagram" className="mt-2 max-h-56 object-contain" />
+          ) : showAttachHint ? (
+            <button
+              type="button"
+              onClick={() => onAttachClick?.(slot.key)}
+              className="mt-2 text-[10pt] italic text-brand underline decoration-dotted no-print hover:text-brand/80"
+            >
+              Attach diagram here if needed
+            </button>
+          ) : null}
+        </td>
+        <td className="text-center">{slot.marks}</td>
+        <td className="text-center">{q?.co ?? ""}</td>
+        <td className="text-center">{q?.bloom ?? slot.bloom}</td>
+      </tr>,
+    );
+  });
+  return <>{rows}</>;
+}
+
+function uniqCOs(set: GeneratedSet): string[] {
+  return Array.from(new Set(set.questions.map((q) => q.co))).sort();
+}
