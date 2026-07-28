@@ -10,33 +10,128 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DqcIndexRouteImport } from './routes/dqc/index'
+import { Route as DesignerIndexRouteImport } from './routes/designer/index'
+import { Route as CoordIndexRouteImport } from './routes/coord/index'
+import { Route as DesignerNewRouteImport } from './routes/designer/new'
+import { Route as DqcPaperIdRouteImport } from './routes/dqc/paper.$id'
+import { Route as DesignerPaperIdRouteImport } from './routes/designer/paper.$id'
+import { Route as CoordPaperIdRouteImport } from './routes/coord/paper.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DqcIndexRoute = DqcIndexRouteImport.update({
+  id: '/dqc/',
+  path: '/dqc/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignerIndexRoute = DesignerIndexRouteImport.update({
+  id: '/designer/',
+  path: '/designer/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoordIndexRoute = CoordIndexRouteImport.update({
+  id: '/coord/',
+  path: '/coord/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignerNewRoute = DesignerNewRouteImport.update({
+  id: '/designer/new',
+  path: '/designer/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DqcPaperIdRoute = DqcPaperIdRouteImport.update({
+  id: '/dqc/paper/$id',
+  path: '/dqc/paper/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignerPaperIdRoute = DesignerPaperIdRouteImport.update({
+  id: '/designer/paper/$id',
+  path: '/designer/paper/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoordPaperIdRoute = CoordPaperIdRouteImport.update({
+  id: '/coord/paper/$id',
+  path: '/coord/paper/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/designer/new': typeof DesignerNewRoute
+  '/coord/': typeof CoordIndexRoute
+  '/designer/': typeof DesignerIndexRoute
+  '/dqc/': typeof DqcIndexRoute
+  '/coord/paper/$id': typeof CoordPaperIdRoute
+  '/designer/paper/$id': typeof DesignerPaperIdRoute
+  '/dqc/paper/$id': typeof DqcPaperIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/designer/new': typeof DesignerNewRoute
+  '/coord': typeof CoordIndexRoute
+  '/designer': typeof DesignerIndexRoute
+  '/dqc': typeof DqcIndexRoute
+  '/coord/paper/$id': typeof CoordPaperIdRoute
+  '/designer/paper/$id': typeof DesignerPaperIdRoute
+  '/dqc/paper/$id': typeof DqcPaperIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/designer/new': typeof DesignerNewRoute
+  '/coord/': typeof CoordIndexRoute
+  '/designer/': typeof DesignerIndexRoute
+  '/dqc/': typeof DqcIndexRoute
+  '/coord/paper/$id': typeof CoordPaperIdRoute
+  '/designer/paper/$id': typeof DesignerPaperIdRoute
+  '/dqc/paper/$id': typeof DqcPaperIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/designer/new'
+    | '/coord/'
+    | '/designer/'
+    | '/dqc/'
+    | '/coord/paper/$id'
+    | '/designer/paper/$id'
+    | '/dqc/paper/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/designer/new'
+    | '/coord'
+    | '/designer'
+    | '/dqc'
+    | '/coord/paper/$id'
+    | '/designer/paper/$id'
+    | '/dqc/paper/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/designer/new'
+    | '/coord/'
+    | '/designer/'
+    | '/dqc/'
+    | '/coord/paper/$id'
+    | '/designer/paper/$id'
+    | '/dqc/paper/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DesignerNewRoute: typeof DesignerNewRoute
+  CoordIndexRoute: typeof CoordIndexRoute
+  DesignerIndexRoute: typeof DesignerIndexRoute
+  DqcIndexRoute: typeof DqcIndexRoute
+  CoordPaperIdRoute: typeof CoordPaperIdRoute
+  DesignerPaperIdRoute: typeof DesignerPaperIdRoute
+  DqcPaperIdRoute: typeof DqcPaperIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +143,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dqc/': {
+      id: '/dqc/'
+      path: '/dqc'
+      fullPath: '/dqc/'
+      preLoaderRoute: typeof DqcIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/designer/': {
+      id: '/designer/'
+      path: '/designer'
+      fullPath: '/designer/'
+      preLoaderRoute: typeof DesignerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coord/': {
+      id: '/coord/'
+      path: '/coord'
+      fullPath: '/coord/'
+      preLoaderRoute: typeof CoordIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/designer/new': {
+      id: '/designer/new'
+      path: '/designer/new'
+      fullPath: '/designer/new'
+      preLoaderRoute: typeof DesignerNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dqc/paper/$id': {
+      id: '/dqc/paper/$id'
+      path: '/dqc/paper/$id'
+      fullPath: '/dqc/paper/$id'
+      preLoaderRoute: typeof DqcPaperIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/designer/paper/$id': {
+      id: '/designer/paper/$id'
+      path: '/designer/paper/$id'
+      fullPath: '/designer/paper/$id'
+      preLoaderRoute: typeof DesignerPaperIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/coord/paper/$id': {
+      id: '/coord/paper/$id'
+      path: '/coord/paper/$id'
+      fullPath: '/coord/paper/$id'
+      preLoaderRoute: typeof CoordPaperIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DesignerNewRoute: DesignerNewRoute,
+  CoordIndexRoute: CoordIndexRoute,
+  DesignerIndexRoute: DesignerIndexRoute,
+  DqcIndexRoute: DqcIndexRoute,
+  CoordPaperIdRoute: CoordPaperIdRoute,
+  DesignerPaperIdRoute: DesignerPaperIdRoute,
+  DqcPaperIdRoute: DqcPaperIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
