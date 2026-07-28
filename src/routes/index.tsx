@@ -6,10 +6,10 @@ import { Logo } from "@/components/Logo";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Somaiya Vidyavihar — Question Paper Portal" },
+      { title: "KJSIT— Question Paper Portal" },
       { name: "description", content: "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers." },
-      { property: "og:title", content: "Somaiya Vidyavihar — Question Paper Portal" },
-      { property: "og:description", content: "Design, review, and coordinate exam papers for Somaiya Vidyavihar University." },
+      { property: "og:title", content: "KJSIT— Question Paper Portal" },
+      { property: "og:description", content: "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers." },
     ],
   }),
   component: Login,
