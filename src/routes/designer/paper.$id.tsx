@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, FileDown, Image as ImageIcon, Send, X } from "lucide-react";
+import { CheckCircle2, Download, FileDown, Image as ImageIcon, Pencil, Save, Send, X } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
@@ -33,6 +33,8 @@ function PaperEditor() {
   const [attachOpen, setAttachOpen] = useState(false);
   const [attachKey, setAttachKey] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editedSets, setEditedSets] = useState<GeneratedSet[] | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("papers").select("*").eq("id", id).maybeSingle();
@@ -57,10 +59,39 @@ function PaperEditor() {
   if (!paper) return <div className="min-h-screen"><AppHeader /><div className="p-6 text-muted-foreground">Loading…</div></div>;
 
   const meta: PaperMeta = paper.meta;
-  const sets: GeneratedSet[] = paper.sets || [];
+  const sets: GeneratedSet[] = editedSets ?? paper.sets ?? [];
   const pattern = getPattern(meta.marks);
   const readOnly = paper.status !== "draft" && paper.status !== "not_approved";
   const selectedIdx = paper.selected_set_index;
+
+  const applyEdit = (key: string, text: string) => {
+    setEditedSets((prev) => {
+      const base: GeneratedSet[] = prev ?? JSON.parse(JSON.stringify(paper.sets ?? []));
+      const s = base[activeSetIdx];
+      if (!s) return base;
+      const q = s.questions.find((x) => x.key === key);
+      if (q) q.text = text;
+      return [...base];
+    });
+  };
+
+  const saveEdits = async () => {
+    if (!editedSets) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    await supabase.from("papers").update({ sets: editedSets }).eq("id", id);
+    setSaving(false);
+    setEditing(false);
+    setEditedSets(null);
+    await load();
+  };
+
+  const cancelEdits = () => {
+    setEditedSets(null);
+    setEditing(false);
+  };
 
   const finalizeSet = async (idx: number) => {
     setSaving(true);
@@ -164,20 +195,49 @@ function PaperEditor() {
         </div>
 
         {!readOnly && (
-          <div className="mb-4 flex gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             <button
               onClick={() => finalizeSet(activeSetIdx)}
-              disabled={selectedIdx === activeSetIdx || saving}
+              disabled={selectedIdx === activeSetIdx || saving || editing}
               className="inline-flex items-center gap-2 px-4 py-2 border border-brand text-brand rounded-md text-sm hover:bg-brand-muted transition disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" /> {selectedIdx === activeSetIdx ? "This is the selected set" : "Finalize this set"}
             </button>
             <button
               onClick={() => setAttachOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+              disabled={editing}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent disabled:opacity-50"
             >
               <ImageIcon className="w-4 h-4" /> Add Diagram
             </button>
+            {!editing ? (
+              <button
+                onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+              >
+                <Pencil className="w-4 h-4" /> Edit Question Paper
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={saveEdits}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" /> {saving ? "Saving…" : "Save Edits"}
+                </button>
+                <button
+                  onClick={cancelEdits}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                >
+                  <X className="w-4 h-4" /> Cancel
+                </button>
+                <span className="self-center text-xs text-muted-foreground">
+                  Click any question text to edit. Save to persist, then Send to DQC.
+                </span>
+              </>
+            )}
           </div>
         )}
 
@@ -185,12 +245,14 @@ function PaperEditor() {
           meta={meta}
           set={activeSet}
           diagrams={diagramMap}
-          showAttachHint={!readOnly}
-          setLabel={`${setLabels[activeSetIdx]}${selectedIdx === activeSetIdx ? " · Selected" : ""}`}
+          showAttachHint={!readOnly && !editing}
+          setLabel={`${setLabels[activeSetIdx]}${selectedIdx === activeSetIdx ? " · Selected" : ""}${editing ? " · Editing" : ""}`}
           onAttachClick={(k) => {
             setAttachKey(k);
             setAttachOpen(true);
           }}
+          editable={editing}
+          onEditQuestion={applyEdit}
         />
       </div>
 
