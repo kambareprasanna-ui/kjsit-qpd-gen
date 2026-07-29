@@ -66,7 +66,7 @@ function DqcReview() {
     if (!note.trim()) return alert("Please add a note explaining the issue.");
     await supabase.from("papers").update({ status: "not_approved", dqc_note: note }).eq("id", id);
     await supabase.from("notifications").insert({
-      recipient_email: paper.created_by_email || "designer@somaiya.edu",
+      recipient_email: paper.created_by_email || "faculty@somaiya.edu",
       paper_id: id,
       message: `Paper not approved — see DQC note: ${meta.courseName}`,
     });
