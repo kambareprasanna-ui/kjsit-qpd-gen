@@ -42,6 +42,58 @@ function NewPaper() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
 
+  const detectCOs = (text: string): string[] => {
+    const found = new Set<string>();
+    // Match CO1..CO6 followed by a separator (colon, dash, space+capital) suggesting a statement
+    const re = /\bCO\s*([1-6])\b\s*[:.\-–)]/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) found.add(`CO${m[1]}`);
+    // Fallback: any CO1..CO6 mention with a nearby verb (define/explain/apply/analyze/design/evaluate)
+    if (found.size < 3) {
+      const re2 = /\bCO\s*([1-6])\b[^\n]{0,120}?\b(define|explain|apply|analyz|analys|design|evaluat|understand|describe|identify|develop|implement|compare|construct)/gi;
+      let m2: RegExpExecArray | null;
+      while ((m2 = re2.exec(text))) found.add(`CO${m2[1]}`);
+    }
+    return Array.from(found).sort();
+  };
+
+  const runGenerate = async (syllText: string, qbText: string) => {
+    setProgress("Generating 3 question paper sets with AI…");
+    const result = await generate({
+      data: {
+        syllabus: syllText,
+        questionBank: qbText,
+        marks: form.marks,
+        courseName: form.courseName,
+        courseCode: form.courseCode,
+      },
+    });
+    setProgress("Saving paper…");
+    const user = getUser();
+    const returnedCOs = result.courseOutcomes ?? {};
+    const requiredCOs = form.testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
+    const missingAfter = requiredCOs.filter((c) => !returnedCOs[c]?.trim());
+    if (missingAfter.length > 0) {
+      const proceed = confirm(
+        `The AI extracted only ${Object.keys(returnedCOs).length} COs from the syllabus, missing ${missingAfter.join(", ")} needed for Test ${form.testNumber}. Save the paper anyway? (You can edit the syllabus and regenerate later.)`,
+      );
+      if (!proceed) throw new Error("Generation cancelled — please upload a syllabus that lists all COs.");
+    }
+    const { data, error: dbErr } = await supabase
+      .from("papers")
+      .insert({
+        status: "draft",
+        meta: { ...form, courseOutcomes: returnedCOs },
+        sets: result.sets,
+        created_by_role: "designer",
+        created_by_email: user?.email ?? null,
+      })
+      .select()
+      .single();
+    if (dbErr) throw dbErr;
+    navigate({ to: "/designer/paper/$id", params: { id: data.id } });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -60,31 +112,28 @@ function NewPaper() {
       setProgress("Extracting question bank text…");
       const qbText = await extractText(qb);
       if (!qbText.trim()) throw new Error("Could not read the question bank file. Please upload a text-searchable PDF/DOCX/TXT.");
-      setProgress("Generating 3 question paper sets with AI…");
-      const result = await generate({
-        data: {
-          syllabus: syllText,
-          questionBank: qbText,
-          marks: form.marks,
-          courseName: form.courseName,
-          courseCode: form.courseCode,
-        },
-      });
-      setProgress("Saving paper…");
-      const user = getUser();
-      const { data, error: dbErr } = await supabase
-        .from("papers")
-        .insert({
-          status: "draft",
-          meta: { ...form, courseOutcomes: result.courseOutcomes ?? {} },
-          sets: result.sets,
-          created_by_role: "designer",
-          created_by_email: user?.email ?? null,
-        })
-        .select()
-        .single();
-      if (dbErr) throw dbErr;
-      navigate({ to: "/designer/paper/$id", params: { id: data.id } });
+
+      // Pre-flight CO validation
+      const detected = detectCOs(syllText);
+      const required = form.testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
+      const missing = required.filter((c) => !detected.includes(c));
+      if (detected.length < 3) {
+        throw new Error(
+          `Syllabus validation failed: only ${detected.length} Course Outcome${detected.length === 1 ? "" : "s"} detected (${detected.join(", ") || "none"}). A valid syllabus must list at least CO1–CO3 (Test 1) or CO4–CO6 (Test 2) with statements. Please re-upload a syllabus containing the CO section, then try again.`,
+        );
+      }
+      if (missing.length > 0) {
+        const proceed = confirm(
+          `Only detected ${detected.join(", ")} in the syllabus.\nTest ${form.testNumber} needs ${required.join(", ")} — missing: ${missing.join(", ")}.\n\nContinue generating anyway? The AI may still recover them, but the CO footer will be incomplete if it can't.`,
+        );
+        if (!proceed) {
+          setLoading(false);
+          setProgress("");
+          return;
+        }
+      }
+
+      await runGenerate(syllText, qbText);
     } catch (err: any) {
       setError(err?.message || String(err));
       setLoading(false);
