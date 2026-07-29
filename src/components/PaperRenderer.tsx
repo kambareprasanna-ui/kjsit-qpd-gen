@@ -12,6 +12,8 @@ export type PaperMeta = {
   date: string;
   marks: 20 | 30;
   department?: string;
+  testNumber?: 1 | 2;
+  courseOutcomes?: Record<string, string>;
 };
 
 export type DiagramMap = Record<string, string>; // question key -> image data url
@@ -109,9 +111,8 @@ export function PaperRenderer({
       </table>
 
       {/* Course outcomes + signatures */}
-      <div className="mt-6 text-[11pt]">
-        <div><b>Course Outcomes:</b> {uniqCOs(set).join(", ")}</div>
-      </div>
+      <CourseOutcomesFooter meta={meta} />
+
       <div className="mt-8 flex justify-between items-end text-[11pt]">
         <div>
           <div className="border-t border-black pt-1 w-56 text-center">DQC Member</div>
@@ -215,4 +216,27 @@ function RenderGroup({
 
 function uniqCOs(set: GeneratedSet): string[] {
   return Array.from(new Set(set.questions.map((q) => q.co))).sort();
+}
+
+function CourseOutcomesFooter({ meta }: { meta: PaperMeta }) {
+  const testNumber: 1 | 2 = meta.testNumber ?? (meta.marks === 20 ? 1 : 2);
+  const targetCOs = testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
+  const all = meta.courseOutcomes ?? {};
+  return (
+    <div className="mt-6 text-[11pt] border-t border-black pt-3">
+      <div className="font-bold mb-1">
+        Course Outcomes (Test {testNumber}):
+      </div>
+      <table>
+        <tbody>
+          {targetCOs.map((co) => (
+            <tr key={co}>
+              <td style={{ width: "10%" }} className="align-top"><b>{co}</b></td>
+              <td>{all[co] ?? <span className="italic text-gray-500">Not found in syllabus</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
