@@ -195,20 +195,49 @@ function PaperEditor() {
         </div>
 
         {!readOnly && (
-          <div className="mb-4 flex gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             <button
               onClick={() => finalizeSet(activeSetIdx)}
-              disabled={selectedIdx === activeSetIdx || saving}
+              disabled={selectedIdx === activeSetIdx || saving || editing}
               className="inline-flex items-center gap-2 px-4 py-2 border border-brand text-brand rounded-md text-sm hover:bg-brand-muted transition disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" /> {selectedIdx === activeSetIdx ? "This is the selected set" : "Finalize this set"}
             </button>
             <button
               onClick={() => setAttachOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+              disabled={editing}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent disabled:opacity-50"
             >
               <ImageIcon className="w-4 h-4" /> Add Diagram
             </button>
+            {!editing ? (
+              <button
+                onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+              >
+                <Pencil className="w-4 h-4" /> Edit Question Paper
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={saveEdits}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" /> {saving ? "Saving…" : "Save Edits"}
+                </button>
+                <button
+                  onClick={cancelEdits}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                >
+                  <X className="w-4 h-4" /> Cancel
+                </button>
+                <span className="self-center text-xs text-muted-foreground">
+                  Click any question text to edit. Save to persist, then Send to DQC.
+                </span>
+              </>
+            )}
           </div>
         )}
 
@@ -216,12 +245,14 @@ function PaperEditor() {
           meta={meta}
           set={activeSet}
           diagrams={diagramMap}
-          showAttachHint={!readOnly}
-          setLabel={`${setLabels[activeSetIdx]}${selectedIdx === activeSetIdx ? " · Selected" : ""}`}
+          showAttachHint={!readOnly && !editing}
+          setLabel={`${setLabels[activeSetIdx]}${selectedIdx === activeSetIdx ? " · Selected" : ""}${editing ? " · Editing" : ""}`}
           onAttachClick={(k) => {
             setAttachKey(k);
             setAttachOpen(true);
           }}
+          editable={editing}
+          onEditQuestion={applyEdit}
         />
       </div>
 
