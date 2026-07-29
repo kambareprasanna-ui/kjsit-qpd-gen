@@ -148,12 +148,16 @@ function RenderGroup({
   diagrams,
   showAttachHint,
   onAttachClick,
+  editable,
+  onEditQuestion,
 }: {
   group: QGroup;
   questions: GeneratedSet["questions"];
   diagrams: DiagramMap;
   showAttachHint?: boolean;
   onAttachClick?: (key: string) => void;
+  editable?: boolean;
+  onEditQuestion?: (key: string, text: string) => void;
 }) {
   const rows: React.ReactElement[] = [];
   group.slots.forEach((slot, idx) => {
@@ -176,7 +180,18 @@ function RenderGroup({
         <td>{idx === 0 ? slot.qNo : ""}</td>
         <td>{slot.subQ}</td>
         <td>
-          <div>{q?.text ?? ""}</div>
+          {editable ? (
+            <div
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={(e) => onEditQuestion?.(slot.key, e.currentTarget.textContent ?? "")}
+              className="outline-none focus:ring-2 focus:ring-brand/40 rounded px-1 py-0.5 min-h-[1.5em] bg-yellow-50 dark:bg-yellow-900/10"
+            >
+              {q?.text ?? ""}
+            </div>
+          ) : (
+            <div>{q?.text ?? ""}</div>
+          )}
           {diag ? (
             <img src={diag} alt="diagram" className="mt-2 max-h-56 object-contain" />
           ) : showAttachHint ? (
