@@ -118,3 +118,15 @@
 .paper-page table { border-collapse: collapse; width: 100%; }
 .paper-page th, .paper-page td { border: 1px solid #111; padding: 6px 8px; vertical-align: top; font-size: 12pt; }
 .paper-page th { background: #f2f2f2; font-weight: 600; text-align: left; }
+
+/* Hide Lovable badge */
+#lovable-badge,
+[id^="lovable-badge"],
+a[href*="lovable.dev"][target="_blank"],
+a[href*="lovable.app"][aria-label*="Lovable" i],
+a[aria-label*="Edit with Lovable" i] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
