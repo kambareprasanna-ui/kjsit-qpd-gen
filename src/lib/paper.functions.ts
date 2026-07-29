@@ -25,7 +25,9 @@ export type GeneratedSet = {
   questions: GeneratedQuestion[];
 };
 
-export type GenerateResponse = { sets: GeneratedSet[] };
+export type CourseOutcomes = Record<string, string>; // { CO1: "desc", ... }
+
+export type GenerateResponse = { sets: GeneratedSet[]; courseOutcomes?: CourseOutcomes };
 
 export const generatePaperFn = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
@@ -64,6 +66,8 @@ ${data.questionBank.slice(0, 22000)}
 
 Produce THREE distinct sets: "Easy", "Medium", "Hard". Each set fills every pattern slot with a question sourced from the QUESTION BANK. Tag each question with a CO code (CO1..CO6) inferred from the module.
 
+Also extract the Course Outcomes (COs) verbatim from the syllabus text. Return them as a map from CO code to its full statement. Include ALL COs found in the syllabus (typically CO1..CO6).
+
 Return ONLY a JSON object of this exact shape (no markdown, no commentary):
 {
   "sets": [
@@ -75,7 +79,15 @@ Return ONLY a JSON object of this exact shape (no markdown, no commentary):
     },
     { "difficulty": "Medium", "questions": [ ... ] },
     { "difficulty": "Hard",   "questions": [ ... ] }
-  ]
+  ],
+  "courseOutcomes": {
+    "CO1": "Statement of course outcome 1 from the syllabus…",
+    "CO2": "…",
+    "CO3": "…",
+    "CO4": "…",
+    "CO5": "…",
+    "CO6": "…"
+  }
 }`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
