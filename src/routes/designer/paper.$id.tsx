@@ -33,6 +33,8 @@ function PaperEditor() {
   const [attachOpen, setAttachOpen] = useState(false);
   const [attachKey, setAttachKey] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editedSets, setEditedSets] = useState<GeneratedSet[] | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("papers").select("*").eq("id", id).maybeSingle();
