@@ -7,7 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { extractText } from "@/lib/parse-file";
 import { generatePaperFn } from "@/lib/paper.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { getUser } from "@/lib/auth";
+import { useUser } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/designer/new")({
   head: () => ({
@@ -69,7 +69,7 @@ function NewPaper() {
       },
     });
     setProgress("Saving paper…");
-    const user = getUser();
+    const user = currentUser;
     const returnedCOs = result.courseOutcomes ?? {};
     const requiredCOs = form.testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
     const missingAfter = requiredCOs.filter((c) => !returnedCOs[c]?.trim());
