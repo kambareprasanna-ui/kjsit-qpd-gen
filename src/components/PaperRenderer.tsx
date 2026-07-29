@@ -24,6 +24,8 @@ export function PaperRenderer({
   showAttachHint = false,
   setLabel,
   onAttachClick,
+  editable = false,
+  onEditQuestion,
 }: {
   meta: PaperMeta;
   set: GeneratedSet;
@@ -32,6 +34,8 @@ export function PaperRenderer({
   showAttachHint?: boolean;
   setLabel?: string;
   onAttachClick?: (key: string) => void;
+  editable?: boolean;
+  onEditQuestion?: (key: string, text: string) => void;
 }) {
   const pattern = getPattern(meta.marks);
   const dept = meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE";
