@@ -59,10 +59,39 @@ function PaperEditor() {
   if (!paper) return <div className="min-h-screen"><AppHeader /><div className="p-6 text-muted-foreground">Loading…</div></div>;
 
   const meta: PaperMeta = paper.meta;
-  const sets: GeneratedSet[] = paper.sets || [];
+  const sets: GeneratedSet[] = editedSets ?? paper.sets ?? [];
   const pattern = getPattern(meta.marks);
   const readOnly = paper.status !== "draft" && paper.status !== "not_approved";
   const selectedIdx = paper.selected_set_index;
+
+  const applyEdit = (key: string, text: string) => {
+    setEditedSets((prev) => {
+      const base: GeneratedSet[] = prev ?? JSON.parse(JSON.stringify(paper.sets ?? []));
+      const s = base[activeSetIdx];
+      if (!s) return base;
+      const q = s.questions.find((x) => x.key === key);
+      if (q) q.text = text;
+      return [...base];
+    });
+  };
+
+  const saveEdits = async () => {
+    if (!editedSets) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    await supabase.from("papers").update({ sets: editedSets }).eq("id", id);
+    setSaving(false);
+    setEditing(false);
+    setEditedSets(null);
+    await load();
+  };
+
+  const cancelEdits = () => {
+    setEditedSets(null);
+    setEditing(false);
+  };
 
   const finalizeSet = async (idx: number) => {
     setSaving(true);
