@@ -1,57 +1,61 @@
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Role = "designer" | "dqc" | "coord";
 
-export type DemoUser = {
+export type AppUser = {
+  id: string;
   email: string;
-  role: Role;
   name: string;
+  role: Role;
 };
 
-export const DEMO_USERS: DemoUser[] = [
-  { email: "designer@somaiya.edu", role: "designer", name: "Paper Designer" },
-  { email: "dqc@somaiya.edu", role: "dqc", name: "DQC Member" },
-  { email: "examcoord@somaiya.edu", role: "coord", name: "Exam Coordinator" },
+export function roleHome(role: Role): string {
+  return role === "designer" ? "/designer" : role === "dqc" ? "/dqc" : "/coord";
+}
+
+// Restrict signups to the three demo staff accounts.
+export const ALLOWED_EMAILS = [
+  "designer@somaiya.edu",
+  "dqc@somaiya.edu",
+  "examcoord@somaiya.edu",
 ];
 
-const KEY = "svv_demo_user";
-
-export function getUser(): DemoUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as DemoUser;
-  } catch {
-    return null;
-  }
+async function loadAppUser(): Promise<AppUser | null> {
+  const { data: userData } = await supabase.auth.getUser();
+  const u = userData.user;
+  if (!u) return null;
+  const [{ data: role }, { data: profile }] = await Promise.all([
+    supabase.from("user_roles").select("role").eq("user_id", u.id).maybeSingle(),
+    supabase.from("profiles").select("name, email").eq("id", u.id).maybeSingle(),
+  ]);
+  if (!role?.role) return null;
+  return {
+    id: u.id,
+    email: profile?.email ?? u.email ?? "",
+    name: profile?.name ?? "",
+    role: role.role as Role,
+  };
 }
 
-export function setUser(user: DemoUser) {
-  localStorage.setItem(KEY, JSON.stringify(user));
-  window.dispatchEvent(new Event("svv_user_change"));
-}
-
-export function clearUser() {
-  localStorage.removeItem(KEY);
-  window.dispatchEvent(new Event("svv_user_change"));
-}
-
-export function useUser(): DemoUser | null {
-  const [user, setU] = useState<DemoUser | null>(null);
+export function useUser(): AppUser | null {
+  const [user, setUser] = useState<AppUser | null>(null);
   useEffect(() => {
-    setU(getUser());
-    const h = () => setU(getUser());
-    window.addEventListener("svv_user_change", h);
-    window.addEventListener("storage", h);
+    let mounted = true;
+    loadAppUser().then((u) => mounted && setUser(u));
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+        loadAppUser().then((u) => mounted && setUser(u));
+      }
+    });
     return () => {
-      window.removeEventListener("svv_user_change", h);
-      window.removeEventListener("storage", h);
+      mounted = false;
+      sub.subscription.unsubscribe();
     };
   }, []);
   return user;
 }
 
-export function roleHome(role: Role): string {
-  return role === "designer" ? "/designer" : role === "dqc" ? "/dqc" : "/coord";
+export async function signOut() {
+  await supabase.auth.signOut();
 }

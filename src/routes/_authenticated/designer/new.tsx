@@ -9,7 +9,7 @@ import { generatePaperFn } from "@/lib/paper.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { getUser } from "@/lib/auth";
 
-export const Route = createFileRoute("/designer/new")({
+export const Route = createFileRoute("/_authenticated/designer/new")({
   head: () => ({
     meta: [
       { title: "New Question Paper — Somaiya Portal" },

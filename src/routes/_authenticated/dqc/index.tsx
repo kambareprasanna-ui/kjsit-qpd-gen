@@ -4,7 +4,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/dqc/")({
+export const Route = createFileRoute("/_authenticated/dqc/")({
   head: () => ({
     meta: [
       { title: "DQC Dashboard — Somaiya Portal" },

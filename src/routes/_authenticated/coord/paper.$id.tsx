@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { exportPaperDocx, exportPaperPdf } from "@/lib/export";
 import type { GeneratedSet } from "@/lib/paper.functions";
 
-export const Route = createFileRoute("/coord/paper/$id")({
+export const Route = createFileRoute("/_authenticated/coord/paper/$id")({
   head: () => ({
     meta: [
       { title: "Approved Paper — Somaiya Portal" },

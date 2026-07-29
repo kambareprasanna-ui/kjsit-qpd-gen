@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Tab = "draft" | "sent_to_dqc" | "approved" | "not_approved";
 
-export const Route = createFileRoute("/designer/")({
+export const Route = createFileRoute("/_authenticated/designer/")({
   head: () => ({
     meta: [
       { title: "Designer Dashboard — Somaiya Question Paper Portal" },

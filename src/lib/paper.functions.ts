@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { PATTERN_20, PATTERN_30, type PatternSlot } from "./paper-pattern";
 
 const Input = z.object({
@@ -30,8 +31,15 @@ export type CourseOutcomes = Record<string, string>; // { CO1: "desc", ... }
 export type GenerateResponse = { sets: GeneratedSet[]; courseOutcomes?: CourseOutcomes };
 
 export const generatePaperFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
-  .handler(async ({ data }): Promise<GenerateResponse> => {
+  .handler(async ({ data, context }): Promise<GenerateResponse> => {
+    // Only signed-in designers may spend AI credits generating papers.
+    const { data: allowed } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "designer",
+    });
+    if (!allowed) throw new Error("Only designers can generate question papers.");
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
