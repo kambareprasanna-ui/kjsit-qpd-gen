@@ -16,7 +16,7 @@ export function roleHome(role: Role): string {
 
 // Restrict signups to the three demo staff accounts.
 export const ALLOWED_EMAILS = [
-  "designer@somaiya.edu",
+  "faculty@somaiya.edu",
   "dqc@somaiya.edu",
   "examcoord@somaiya.edu",
 ];
