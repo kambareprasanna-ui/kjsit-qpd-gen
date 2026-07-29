@@ -34,6 +34,7 @@ function NewPaper() {
     academicYear: "2025-26",
     semester: "III",
     marks: 20 as 20 | 30,
+    testNumber: 1 as 1 | 2,
   });
   const [syllabus, setSyllabus] = useState<File | null>(null);
   const [qb, setQb] = useState<File | null>(null);
@@ -75,7 +76,7 @@ function NewPaper() {
         .from("papers")
         .insert({
           status: "draft",
-          meta: form,
+          meta: { ...form, courseOutcomes: result.courseOutcomes ?? {} },
           sets: result.sets,
           created_by_role: "designer",
           created_by_email: user?.email ?? null,
@@ -105,9 +106,18 @@ function NewPaper() {
               <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={input} />
             </Field>
             <Field label="Marks">
-              <select value={form.marks} onChange={(e) => setForm({ ...form, marks: Number(e.target.value) as 20 | 30 })} className={input}>
+              <select value={form.marks} onChange={(e) => {
+                const m = Number(e.target.value) as 20 | 30;
+                setForm({ ...form, marks: m, testNumber: m === 20 ? 1 : 2 });
+              }} className={input}>
                 <option value={20}>20</option>
                 <option value={30}>30</option>
+              </select>
+            </Field>
+            <Field label="Test">
+              <select value={form.testNumber} onChange={(e) => setForm({ ...form, testNumber: Number(e.target.value) as 1 | 2 })} className={input}>
+                <option value={1}>Test 1 (CO1–CO3)</option>
+                <option value={2}>Test 2 (CO4–CO6)</option>
               </select>
             </Field>
             <Field label="Course Name">
