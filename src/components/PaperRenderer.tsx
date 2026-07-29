@@ -101,6 +101,8 @@ export function PaperRenderer({
               diagrams={diagrams}
               showAttachHint={showAttachHint}
               onAttachClick={onAttachClick}
+              editable={editable}
+              onEditQuestion={onEditQuestion}
             />
           ))}
         </tbody>
