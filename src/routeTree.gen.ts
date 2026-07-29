@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDqcIndexRouteImport } from './routes/_authenticated/dqc/index'
 import { Route as AuthenticatedDesignerIndexRouteImport } from './routes/_authenticated/designer/index'
@@ -18,53 +20,63 @@ import { Route as AuthenticatedDqcPaperIdRouteImport } from './routes/_authentic
 import { Route as AuthenticatedDesignerPaperIdRouteImport } from './routes/_authenticated/designer/paper.$id'
 import { Route as AuthenticatedCoordPaperIdRouteImport } from './routes/_authenticated/coord/paper.$id'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDqcIndexRoute = AuthenticatedDqcIndexRouteImport.update({
-  id: '/_authenticated/dqc/',
+  id: '/dqc/',
   path: '/dqc/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDesignerIndexRoute =
   AuthenticatedDesignerIndexRouteImport.update({
-    id: '/_authenticated/designer/',
+    id: '/designer/',
     path: '/designer/',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCoordIndexRoute = AuthenticatedCoordIndexRouteImport.update({
-  id: '/_authenticated/coord/',
+  id: '/coord/',
   path: '/coord/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDesignerNewRoute =
   AuthenticatedDesignerNewRouteImport.update({
-    id: '/_authenticated/designer/new',
+    id: '/designer/new',
     path: '/designer/new',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedDqcPaperIdRoute = AuthenticatedDqcPaperIdRouteImport.update({
-  id: '/_authenticated/dqc/paper/$id',
+  id: '/dqc/paper/$id',
   path: '/dqc/paper/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDesignerPaperIdRoute =
   AuthenticatedDesignerPaperIdRouteImport.update({
-    id: '/_authenticated/designer/paper/$id',
+    id: '/designer/paper/$id',
     path: '/designer/paper/$id',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedCoordPaperIdRoute =
   AuthenticatedCoordPaperIdRouteImport.update({
-    id: '/_authenticated/coord/paper/$id',
+    id: '/coord/paper/$id',
     path: '/coord/paper/$id',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/designer/new': typeof AuthenticatedDesignerNewRoute
   '/coord/': typeof AuthenticatedCoordIndexRoute
   '/designer/': typeof AuthenticatedDesignerIndexRoute
@@ -75,6 +87,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/designer/new': typeof AuthenticatedDesignerNewRoute
   '/coord': typeof AuthenticatedCoordIndexRoute
   '/designer': typeof AuthenticatedDesignerIndexRoute
@@ -86,6 +99,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/_authenticated/designer/new': typeof AuthenticatedDesignerNewRoute
   '/_authenticated/coord/': typeof AuthenticatedCoordIndexRoute
   '/_authenticated/designer/': typeof AuthenticatedDesignerIndexRoute
@@ -98,6 +113,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/designer/new'
     | '/coord/'
     | '/designer/'
@@ -108,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/designer/new'
     | '/coord'
     | '/designer'
@@ -118,6 +135,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/_authenticated/designer/new'
     | '/_authenticated/coord/'
     | '/_authenticated/designer/'
@@ -129,17 +148,26 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthenticatedDesignerNewRoute: typeof AuthenticatedDesignerNewRoute
-  AuthenticatedCoordIndexRoute: typeof AuthenticatedCoordIndexRoute
-  AuthenticatedDesignerIndexRoute: typeof AuthenticatedDesignerIndexRoute
-  AuthenticatedDqcIndexRoute: typeof AuthenticatedDqcIndexRoute
-  AuthenticatedCoordPaperIdRoute: typeof AuthenticatedCoordPaperIdRoute
-  AuthenticatedDesignerPaperIdRoute: typeof AuthenticatedDesignerPaperIdRoute
-  AuthenticatedDqcPaperIdRoute: typeof AuthenticatedDqcPaperIdRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -152,55 +180,64 @@ declare module '@tanstack/react-router' {
       path: '/dqc'
       fullPath: '/dqc/'
       preLoaderRoute: typeof AuthenticatedDqcIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/designer/': {
       id: '/_authenticated/designer/'
       path: '/designer'
       fullPath: '/designer/'
       preLoaderRoute: typeof AuthenticatedDesignerIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/coord/': {
       id: '/_authenticated/coord/'
       path: '/coord'
       fullPath: '/coord/'
       preLoaderRoute: typeof AuthenticatedCoordIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/designer/new': {
       id: '/_authenticated/designer/new'
       path: '/designer/new'
       fullPath: '/designer/new'
       preLoaderRoute: typeof AuthenticatedDesignerNewRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dqc/paper/$id': {
       id: '/_authenticated/dqc/paper/$id'
       path: '/dqc/paper/$id'
       fullPath: '/dqc/paper/$id'
       preLoaderRoute: typeof AuthenticatedDqcPaperIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/designer/paper/$id': {
       id: '/_authenticated/designer/paper/$id'
       path: '/designer/paper/$id'
       fullPath: '/designer/paper/$id'
       preLoaderRoute: typeof AuthenticatedDesignerPaperIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/coord/paper/$id': {
       id: '/_authenticated/coord/paper/$id'
       path: '/coord/paper/$id'
       fullPath: '/coord/paper/$id'
       preLoaderRoute: typeof AuthenticatedCoordPaperIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDesignerNewRoute: typeof AuthenticatedDesignerNewRoute
+  AuthenticatedCoordIndexRoute: typeof AuthenticatedCoordIndexRoute
+  AuthenticatedDesignerIndexRoute: typeof AuthenticatedDesignerIndexRoute
+  AuthenticatedDqcIndexRoute: typeof AuthenticatedDqcIndexRoute
+  AuthenticatedCoordPaperIdRoute: typeof AuthenticatedCoordPaperIdRoute
+  AuthenticatedDesignerPaperIdRoute: typeof AuthenticatedDesignerPaperIdRoute
+  AuthenticatedDqcPaperIdRoute: typeof AuthenticatedDqcPaperIdRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDesignerNewRoute: AuthenticatedDesignerNewRoute,
   AuthenticatedCoordIndexRoute: AuthenticatedCoordIndexRoute,
   AuthenticatedDesignerIndexRoute: AuthenticatedDesignerIndexRoute,
@@ -208,6 +245,15 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedCoordPaperIdRoute: AuthenticatedCoordPaperIdRoute,
   AuthenticatedDesignerPaperIdRoute: AuthenticatedDesignerPaperIdRoute,
   AuthenticatedDqcPaperIdRoute: AuthenticatedDqcPaperIdRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
