@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Users, Bell } from "lucide-react";
+import { LogOut, Bell } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "./Logo";
-import { DEMO_USERS, clearUser, roleHome, setUser, useUser } from "@/lib/auth";
+import { roleHome, signOut, useUser } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 
 export function AppHeader() {
@@ -32,6 +32,13 @@ export function AppHeader() {
 
   if (!user) return null;
 
+  const roleLabel =
+    user.role === "designer"
+      ? "Paper Designer"
+      : user.role === "dqc"
+        ? "DQC Member"
+        : "Exam Coordinator";
+
   return (
     <header className="border-b border-border bg-card sticky top-0 z-40 no-print">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
@@ -54,40 +61,29 @@ export function AppHeader() {
             </Link>
           )}
           <div className="text-right hidden sm:block">
-            <div className="text-sm font-medium">{user.name}</div>
+            <div className="text-sm font-medium">{roleLabel}</div>
             <div className="text-xs text-muted-foreground">{user.email}</div>
           </div>
           <div className="relative">
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="p-2 rounded-md hover:bg-accent transition"
-              aria-label="Switch role"
+              aria-label="Account menu"
             >
-              <Users className="w-5 h-5" />
+              <LogOut className="w-5 h-5" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-md shadow-lg p-2 z-50">
-                <div className="px-2 py-1 text-xs text-muted-foreground">Switch demo role</div>
-                {DEMO_USERS.map((u) => (
-                  <button
-                    key={u.email}
-                    onClick={() => {
-                      setUser(u);
-                      setMenuOpen(false);
-                      navigate({ to: roleHome(u.role) });
-                    }}
-                    className={`w-full text-left px-2 py-2 rounded-md text-sm hover:bg-accent ${u.email === user.email ? "bg-brand-muted text-brand" : ""}`}
-                  >
-                    <div className="font-medium">{u.name}</div>
-                    <div className="text-xs text-muted-foreground">{u.email}</div>
-                  </button>
-                ))}
+              <div className="absolute right-0 mt-2 w-56 bg-popover border border-border rounded-md shadow-lg p-2 z-50">
+                <div className="px-2 py-2 text-xs text-muted-foreground">
+                  Signed in as
+                  <div className="text-sm font-medium text-foreground">{user.email}</div>
+                </div>
                 <div className="border-t border-border my-1" />
                 <button
-                  onClick={() => {
-                    clearUser();
+                  onClick={async () => {
                     setMenuOpen(false);
-                    navigate({ to: "/" });
+                    await signOut();
+                    navigate({ to: "/auth", replace: true });
                   }}
                   className="w-full text-left px-2 py-2 rounded-md text-sm text-destructive hover:bg-accent flex items-center gap-2"
                 >

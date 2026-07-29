@@ -7,9 +7,9 @@ import { AppHeader } from "@/components/AppHeader";
 import { extractText } from "@/lib/parse-file";
 import { generatePaperFn } from "@/lib/paper.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { getUser } from "@/lib/auth";
+import { useUser } from "@/lib/auth";
 
-export const Route = createFileRoute("/designer/new")({
+export const Route = createFileRoute("/_authenticated/designer/new")({
   head: () => ({
     meta: [
       { title: "New Question Paper — Somaiya Portal" },
@@ -26,6 +26,7 @@ export const Route = createFileRoute("/designer/new")({
 function NewPaper() {
   const navigate = useNavigate();
   const generate = useServerFn(generatePaperFn);
+  const currentUser = useUser();
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     courseName: "",
@@ -69,7 +70,7 @@ function NewPaper() {
       },
     });
     setProgress("Saving paper…");
-    const user = getUser();
+    const user = currentUser;
     const returnedCOs = result.courseOutcomes ?? {};
     const requiredCOs = form.testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
     const missingAfter = requiredCOs.filter((c) => !returnedCOs[c]?.trim());

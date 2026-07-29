@@ -10,7 +10,7 @@ import { exportPaperDocx, exportPaperPdf } from "@/lib/export";
 import { getPattern } from "@/lib/paper-pattern";
 import type { GeneratedSet } from "@/lib/paper.functions";
 
-export const Route = createFileRoute("/designer/paper/$id")({
+export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
   head: () => ({
     meta: [
       { title: "Edit Paper — Somaiya Portal" },

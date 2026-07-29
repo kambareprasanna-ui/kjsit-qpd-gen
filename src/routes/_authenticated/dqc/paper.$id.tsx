@@ -9,7 +9,7 @@ import { fileToDataUrl } from "@/lib/parse-file";
 import { getPattern } from "@/lib/paper-pattern";
 import type { GeneratedSet } from "@/lib/paper.functions";
 
-export const Route = createFileRoute("/dqc/paper/$id")({
+export const Route = createFileRoute("/_authenticated/dqc/paper/$id")({
   head: () => ({
     meta: [
       { title: "DQC Review — Somaiya Portal" },

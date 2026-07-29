@@ -4,7 +4,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/coord/")({
+export const Route = createFileRoute("/_authenticated/coord/")({
   head: () => ({
     meta: [
       { title: "Exam Coordinator — Somaiya Portal" },

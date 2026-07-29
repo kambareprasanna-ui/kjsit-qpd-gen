@@ -9,91 +9,111 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DqcIndexRouteImport } from './routes/dqc/index'
-import { Route as DesignerIndexRouteImport } from './routes/designer/index'
-import { Route as CoordIndexRouteImport } from './routes/coord/index'
-import { Route as DesignerNewRouteImport } from './routes/designer/new'
-import { Route as DqcPaperIdRouteImport } from './routes/dqc/paper.$id'
-import { Route as DesignerPaperIdRouteImport } from './routes/designer/paper.$id'
-import { Route as CoordPaperIdRouteImport } from './routes/coord/paper.$id'
+import { Route as AuthenticatedDqcIndexRouteImport } from './routes/_authenticated/dqc/index'
+import { Route as AuthenticatedDesignerIndexRouteImport } from './routes/_authenticated/designer/index'
+import { Route as AuthenticatedCoordIndexRouteImport } from './routes/_authenticated/coord/index'
+import { Route as AuthenticatedDesignerNewRouteImport } from './routes/_authenticated/designer/new'
+import { Route as AuthenticatedDqcPaperIdRouteImport } from './routes/_authenticated/dqc/paper.$id'
+import { Route as AuthenticatedDesignerPaperIdRouteImport } from './routes/_authenticated/designer/paper.$id'
+import { Route as AuthenticatedCoordPaperIdRouteImport } from './routes/_authenticated/coord/paper.$id'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DqcIndexRoute = DqcIndexRouteImport.update({
+const AuthenticatedDqcIndexRoute = AuthenticatedDqcIndexRouteImport.update({
   id: '/dqc/',
   path: '/dqc/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const DesignerIndexRoute = DesignerIndexRouteImport.update({
-  id: '/designer/',
-  path: '/designer/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CoordIndexRoute = CoordIndexRouteImport.update({
+const AuthenticatedDesignerIndexRoute =
+  AuthenticatedDesignerIndexRouteImport.update({
+    id: '/designer/',
+    path: '/designer/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCoordIndexRoute = AuthenticatedCoordIndexRouteImport.update({
   id: '/coord/',
   path: '/coord/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const DesignerNewRoute = DesignerNewRouteImport.update({
-  id: '/designer/new',
-  path: '/designer/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DqcPaperIdRoute = DqcPaperIdRouteImport.update({
+const AuthenticatedDesignerNewRoute =
+  AuthenticatedDesignerNewRouteImport.update({
+    id: '/designer/new',
+    path: '/designer/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDqcPaperIdRoute = AuthenticatedDqcPaperIdRouteImport.update({
   id: '/dqc/paper/$id',
   path: '/dqc/paper/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const DesignerPaperIdRoute = DesignerPaperIdRouteImport.update({
-  id: '/designer/paper/$id',
-  path: '/designer/paper/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CoordPaperIdRoute = CoordPaperIdRouteImport.update({
-  id: '/coord/paper/$id',
-  path: '/coord/paper/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedDesignerPaperIdRoute =
+  AuthenticatedDesignerPaperIdRouteImport.update({
+    id: '/designer/paper/$id',
+    path: '/designer/paper/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCoordPaperIdRoute =
+  AuthenticatedCoordPaperIdRouteImport.update({
+    id: '/coord/paper/$id',
+    path: '/coord/paper/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/designer/new': typeof DesignerNewRoute
-  '/coord/': typeof CoordIndexRoute
-  '/designer/': typeof DesignerIndexRoute
-  '/dqc/': typeof DqcIndexRoute
-  '/coord/paper/$id': typeof CoordPaperIdRoute
-  '/designer/paper/$id': typeof DesignerPaperIdRoute
-  '/dqc/paper/$id': typeof DqcPaperIdRoute
+  '/auth': typeof AuthRoute
+  '/designer/new': typeof AuthenticatedDesignerNewRoute
+  '/coord/': typeof AuthenticatedCoordIndexRoute
+  '/designer/': typeof AuthenticatedDesignerIndexRoute
+  '/dqc/': typeof AuthenticatedDqcIndexRoute
+  '/coord/paper/$id': typeof AuthenticatedCoordPaperIdRoute
+  '/designer/paper/$id': typeof AuthenticatedDesignerPaperIdRoute
+  '/dqc/paper/$id': typeof AuthenticatedDqcPaperIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/designer/new': typeof DesignerNewRoute
-  '/coord': typeof CoordIndexRoute
-  '/designer': typeof DesignerIndexRoute
-  '/dqc': typeof DqcIndexRoute
-  '/coord/paper/$id': typeof CoordPaperIdRoute
-  '/designer/paper/$id': typeof DesignerPaperIdRoute
-  '/dqc/paper/$id': typeof DqcPaperIdRoute
+  '/auth': typeof AuthRoute
+  '/designer/new': typeof AuthenticatedDesignerNewRoute
+  '/coord': typeof AuthenticatedCoordIndexRoute
+  '/designer': typeof AuthenticatedDesignerIndexRoute
+  '/dqc': typeof AuthenticatedDqcIndexRoute
+  '/coord/paper/$id': typeof AuthenticatedCoordPaperIdRoute
+  '/designer/paper/$id': typeof AuthenticatedDesignerPaperIdRoute
+  '/dqc/paper/$id': typeof AuthenticatedDqcPaperIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/designer/new': typeof DesignerNewRoute
-  '/coord/': typeof CoordIndexRoute
-  '/designer/': typeof DesignerIndexRoute
-  '/dqc/': typeof DqcIndexRoute
-  '/coord/paper/$id': typeof CoordPaperIdRoute
-  '/designer/paper/$id': typeof DesignerPaperIdRoute
-  '/dqc/paper/$id': typeof DqcPaperIdRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/designer/new': typeof AuthenticatedDesignerNewRoute
+  '/_authenticated/coord/': typeof AuthenticatedCoordIndexRoute
+  '/_authenticated/designer/': typeof AuthenticatedDesignerIndexRoute
+  '/_authenticated/dqc/': typeof AuthenticatedDqcIndexRoute
+  '/_authenticated/coord/paper/$id': typeof AuthenticatedCoordPaperIdRoute
+  '/_authenticated/designer/paper/$id': typeof AuthenticatedDesignerPaperIdRoute
+  '/_authenticated/dqc/paper/$id': typeof AuthenticatedDqcPaperIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/designer/new'
     | '/coord/'
     | '/designer/'
@@ -104,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/designer/new'
     | '/coord'
     | '/designer'
@@ -114,28 +135,39 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/designer/new'
-    | '/coord/'
-    | '/designer/'
-    | '/dqc/'
-    | '/coord/paper/$id'
-    | '/designer/paper/$id'
-    | '/dqc/paper/$id'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/designer/new'
+    | '/_authenticated/coord/'
+    | '/_authenticated/designer/'
+    | '/_authenticated/dqc/'
+    | '/_authenticated/coord/paper/$id'
+    | '/_authenticated/designer/paper/$id'
+    | '/_authenticated/dqc/paper/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DesignerNewRoute: typeof DesignerNewRoute
-  CoordIndexRoute: typeof CoordIndexRoute
-  DesignerIndexRoute: typeof DesignerIndexRoute
-  DqcIndexRoute: typeof DqcIndexRoute
-  CoordPaperIdRoute: typeof CoordPaperIdRoute
-  DesignerPaperIdRoute: typeof DesignerPaperIdRoute
-  DqcPaperIdRoute: typeof DqcPaperIdRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -143,67 +175,85 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dqc/': {
-      id: '/dqc/'
+    '/_authenticated/dqc/': {
+      id: '/_authenticated/dqc/'
       path: '/dqc'
       fullPath: '/dqc/'
-      preLoaderRoute: typeof DqcIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedDqcIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/designer/': {
-      id: '/designer/'
+    '/_authenticated/designer/': {
+      id: '/_authenticated/designer/'
       path: '/designer'
       fullPath: '/designer/'
-      preLoaderRoute: typeof DesignerIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedDesignerIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/coord/': {
-      id: '/coord/'
+    '/_authenticated/coord/': {
+      id: '/_authenticated/coord/'
       path: '/coord'
       fullPath: '/coord/'
-      preLoaderRoute: typeof CoordIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedCoordIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/designer/new': {
-      id: '/designer/new'
+    '/_authenticated/designer/new': {
+      id: '/_authenticated/designer/new'
       path: '/designer/new'
       fullPath: '/designer/new'
-      preLoaderRoute: typeof DesignerNewRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedDesignerNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/dqc/paper/$id': {
-      id: '/dqc/paper/$id'
+    '/_authenticated/dqc/paper/$id': {
+      id: '/_authenticated/dqc/paper/$id'
       path: '/dqc/paper/$id'
       fullPath: '/dqc/paper/$id'
-      preLoaderRoute: typeof DqcPaperIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedDqcPaperIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/designer/paper/$id': {
-      id: '/designer/paper/$id'
+    '/_authenticated/designer/paper/$id': {
+      id: '/_authenticated/designer/paper/$id'
       path: '/designer/paper/$id'
       fullPath: '/designer/paper/$id'
-      preLoaderRoute: typeof DesignerPaperIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedDesignerPaperIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/coord/paper/$id': {
-      id: '/coord/paper/$id'
+    '/_authenticated/coord/paper/$id': {
+      id: '/_authenticated/coord/paper/$id'
       path: '/coord/paper/$id'
       fullPath: '/coord/paper/$id'
-      preLoaderRoute: typeof CoordPaperIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedCoordPaperIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDesignerNewRoute: typeof AuthenticatedDesignerNewRoute
+  AuthenticatedCoordIndexRoute: typeof AuthenticatedCoordIndexRoute
+  AuthenticatedDesignerIndexRoute: typeof AuthenticatedDesignerIndexRoute
+  AuthenticatedDqcIndexRoute: typeof AuthenticatedDqcIndexRoute
+  AuthenticatedCoordPaperIdRoute: typeof AuthenticatedCoordPaperIdRoute
+  AuthenticatedDesignerPaperIdRoute: typeof AuthenticatedDesignerPaperIdRoute
+  AuthenticatedDqcPaperIdRoute: typeof AuthenticatedDqcPaperIdRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDesignerNewRoute: AuthenticatedDesignerNewRoute,
+  AuthenticatedCoordIndexRoute: AuthenticatedCoordIndexRoute,
+  AuthenticatedDesignerIndexRoute: AuthenticatedDesignerIndexRoute,
+  AuthenticatedDqcIndexRoute: AuthenticatedDqcIndexRoute,
+  AuthenticatedCoordPaperIdRoute: AuthenticatedCoordPaperIdRoute,
+  AuthenticatedDesignerPaperIdRoute: AuthenticatedDesignerPaperIdRoute,
+  AuthenticatedDqcPaperIdRoute: AuthenticatedDqcPaperIdRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DesignerNewRoute: DesignerNewRoute,
-  CoordIndexRoute: CoordIndexRoute,
-  DesignerIndexRoute: DesignerIndexRoute,
-  DqcIndexRoute: DqcIndexRoute,
-  CoordPaperIdRoute: CoordPaperIdRoute,
-  DesignerPaperIdRoute: DesignerPaperIdRoute,
-  DqcPaperIdRoute: DqcPaperIdRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
