@@ -26,6 +26,7 @@ export const Route = createFileRoute("/_authenticated/designer/new")({
 function NewPaper() {
   const navigate = useNavigate();
   const generate = useServerFn(generatePaperFn);
+  const currentUser = useUser();
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     courseName: "",
