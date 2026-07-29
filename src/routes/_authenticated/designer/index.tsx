@@ -10,7 +10,7 @@ type Tab = "draft" | "sent_to_dqc" | "approved" | "not_approved";
 export const Route = createFileRoute("/_authenticated/designer/")({
   head: () => ({
     meta: [
-      { title: "Designer Dashboard — Somaiya Question Paper Portal" },
+      { title: "Faculty Dashboard — Somaiya Question Paper Portal" },
       { name: "description", content: "Generate, edit, and send question papers for DQC review." },
     ],
   }),

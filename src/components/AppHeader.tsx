@@ -34,7 +34,7 @@ export function AppHeader() {
 
   const roleLabel =
     user.role === "designer"
-      ? "Paper Designer"
+      ? "Faculty"
       : user.role === "dqc"
         ? "DQC Member"
         : "Exam Coordinator";

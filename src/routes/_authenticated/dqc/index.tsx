@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_authenticated/dqc/")({
   head: () => ({
     meta: [
       { title: "DQC Dashboard — Somaiya Portal" },
-      { name: "description", content: "Review papers submitted by designers, run Bloom & CO analysis, and approve or reject." },
+      { name: "description", content: "Review papers submitted by faculty, run Bloom & CO analysis, and approve or reject." },
     ],
   }),
   component: () => (
