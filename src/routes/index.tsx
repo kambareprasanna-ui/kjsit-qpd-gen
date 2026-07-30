@@ -33,7 +33,7 @@ function Landing() {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <main className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
         <div className="flex justify-center mb-8">
           <Logo size={64} />
@@ -51,6 +51,6 @@ function Landing() {
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
