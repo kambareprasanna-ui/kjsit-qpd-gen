@@ -50,6 +50,7 @@ export function AppHeader() {
             <Link
               to="/designer"
               search={{ tab: "not_approved" } as any}
+              aria-label="Notifications"
               className="relative p-2 rounded-md hover:bg-accent transition"
             >
               <Bell className="w-5 h-5" />

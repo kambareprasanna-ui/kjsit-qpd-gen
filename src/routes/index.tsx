@@ -6,19 +6,21 @@ import { useUser, roleHome } from "@/lib/auth";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "KJSIT — Question Paper Portal" },
+      { title: "Staff Sign-in — KJSIT Question Paper Portal" },
       {
         name: "description",
         content:
-          "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers.",
+          "Entry point for KJSIT faculty, DQC members and exam coordinators to sign in and start the question-paper workflow.",
       },
-      { property: "og:title", content: "KJSIT — Question Paper Portal" },
+      { property: "og:title", content: "Staff Sign-in — KJSIT Question Paper Portal" },
       {
         property: "og:description",
         content:
-          "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers.",
+          "Entry point for KJSIT faculty, DQC members and exam coordinators to sign in and start the question-paper workflow.",
       },
+      { property: "og:url", content: "https://kjsit-qpd-gen.lovable.app/" },
     ],
+    links: [{ rel: "canonical", href: "https://kjsit-qpd-gen.lovable.app/" }],
   }),
   component: Landing,
 });
@@ -31,7 +33,7 @@ function Landing() {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <main className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
         <div className="flex justify-center mb-8">
           <Logo size={64} />
@@ -49,6 +51,6 @@ function Landing() {
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
