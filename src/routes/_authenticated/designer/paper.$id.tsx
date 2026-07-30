@@ -261,7 +261,7 @@ function PaperEditor() {
           <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Attach diagram</h3>
-              <button onClick={() => setAttachOpen(false)} className="p-1 hover:bg-accent rounded">
+              <button onClick={() => setAttachOpen(false)} aria-label="Close" className="p-1 hover:bg-accent rounded">
                 <X className="w-4 h-4" />
               </button>
             </div>
