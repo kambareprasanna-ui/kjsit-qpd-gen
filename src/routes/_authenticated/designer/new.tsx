@@ -115,18 +115,18 @@ function NewPaper() {
       const qbText = await extractText(qb);
       if (!qbText.trim()) throw new Error("Could not read the question bank file. Please upload a text-searchable PDF/DOCX/TXT.");
 
-      // Pre-flight CO validation
+      // Pre-flight CO check (warning only — the AI can still extract COs from prose)
       const detected = detectCOs(syllText);
       const required = form.testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
       const missing = required.filter((c) => !detected.includes(c));
-      if (detected.length < 3) {
+      if (!syllText.trim()) {
         throw new Error(
-          `Syllabus validation failed: only ${detected.length} Course Outcome${detected.length === 1 ? "" : "s"} detected (${detected.join(", ") || "none"}). A valid syllabus must list at least CO1–CO3 (Test 1) or CO4–CO6 (Test 2) with statements. Please re-upload a syllabus containing the CO section, then try again.`,
+          "Could not read any text from the syllabus file. It may be a scanned image PDF — please upload a text-searchable PDF/DOCX/TXT.",
         );
       }
       if (missing.length > 0) {
         const proceed = confirm(
-          `Only detected ${detected.join(", ")} in the syllabus.\nTest ${form.testNumber} needs ${required.join(", ")} — missing: ${missing.join(", ")}.\n\nContinue generating anyway? The AI may still recover them, but the CO footer will be incomplete if it can't.`,
+          `Course Outcome check: detected ${detected.join(", ") || "none"} in the syllabus.\nTest ${form.testNumber} needs ${required.join(", ")} — missing: ${missing.join(", ")}.\n\nContinue generating anyway? The AI will still try to extract the COs from the syllabus text.`,
         );
         if (!proceed) {
           setLoading(false);
@@ -134,6 +134,7 @@ function NewPaper() {
           return;
         }
       }
+
 
       await runGenerate(syllText, qbText);
     } catch (err: any) {
