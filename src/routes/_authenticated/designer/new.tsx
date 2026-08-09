@@ -45,15 +45,16 @@ function NewPaper() {
 
   const detectCOs = (text: string): string[] => {
     const found = new Set<string>();
-    // Match CO1..CO6 followed by a separator (colon, dash, space+capital) suggesting a statement
-    const re = /\bCO\s*([1-6])\b\s*[:.\-–)]/gi;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text))) found.add(`CO${m[1]}`);
-    // Fallback: any CO1..CO6 mention with a nearby verb (define/explain/apply/analyze/design/evaluate)
-    if (found.size < 3) {
-      const re2 = /\bCO\s*([1-6])\b[^\n]{0,120}?\b(define|explain|apply|analyz|analys|design|evaluat|understand|describe|identify|develop|implement|compare|construct)/gi;
-      let m2: RegExpExecArray | null;
-      while ((m2 = re2.exec(text))) found.add(`CO${m2[1]}`);
+    const add = (n: string) => found.add(`CO${n}`);
+    // "CO1", "CO 1", "C.O.1", "CO-1" anywhere
+    for (const m of text.matchAll(/\bC\.?\s?O\.?\s?-?\s?([1-6])\b/gi)) add(m[1]);
+    // "Course Outcome 1" / "Outcome 1"
+    for (const m of text.matchAll(/\b(?:course\s+)?outcome\s*[-:.]?\s*([1-6])\b/gi)) add(m[1]);
+    // Numbered list inside a "Course Outcomes" section
+    const secIdx = text.search(/course\s+outcome/i);
+    if (secIdx >= 0 && found.size < 3) {
+      const section = text.slice(secIdx, secIdx + 2500);
+      for (const m of section.matchAll(/(?:^|\n|\s)([1-6])\s*[).:]\s*[A-Za-z]/g)) add(m[1]);
     }
     return Array.from(found).sort();
   };
@@ -114,18 +115,18 @@ function NewPaper() {
       const qbText = await extractText(qb);
       if (!qbText.trim()) throw new Error("Could not read the question bank file. Please upload a text-searchable PDF/DOCX/TXT.");
 
-      // Pre-flight CO validation
+      // Pre-flight CO check (warning only — the AI can still extract COs from prose)
       const detected = detectCOs(syllText);
       const required = form.testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
       const missing = required.filter((c) => !detected.includes(c));
-      if (detected.length < 3) {
+      if (!syllText.trim()) {
         throw new Error(
-          `Syllabus validation failed: only ${detected.length} Course Outcome${detected.length === 1 ? "" : "s"} detected (${detected.join(", ") || "none"}). A valid syllabus must list at least CO1–CO3 (Test 1) or CO4–CO6 (Test 2) with statements. Please re-upload a syllabus containing the CO section, then try again.`,
+          "Could not read any text from the syllabus file. It may be a scanned image PDF — please upload a text-searchable PDF/DOCX/TXT.",
         );
       }
       if (missing.length > 0) {
         const proceed = confirm(
-          `Only detected ${detected.join(", ")} in the syllabus.\nTest ${form.testNumber} needs ${required.join(", ")} — missing: ${missing.join(", ")}.\n\nContinue generating anyway? The AI may still recover them, but the CO footer will be incomplete if it can't.`,
+          `Course Outcome check: detected ${detected.join(", ") || "none"} in the syllabus.\nTest ${form.testNumber} needs ${required.join(", ")} — missing: ${missing.join(", ")}.\n\nContinue generating anyway? The AI will still try to extract the COs from the syllabus text.`,
         );
         if (!proceed) {
           setLoading(false);
@@ -133,6 +134,7 @@ function NewPaper() {
           return;
         }
       }
+
 
       await runGenerate(syllText, qbText);
     } catch (err: any) {
