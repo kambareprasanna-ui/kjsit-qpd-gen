@@ -45,15 +45,16 @@ function NewPaper() {
 
   const detectCOs = (text: string): string[] => {
     const found = new Set<string>();
-    // Match CO1..CO6 followed by a separator (colon, dash, space+capital) suggesting a statement
-    const re = /\bCO\s*([1-6])\b\s*[:.\-–)]/gi;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text))) found.add(`CO${m[1]}`);
-    // Fallback: any CO1..CO6 mention with a nearby verb (define/explain/apply/analyze/design/evaluate)
-    if (found.size < 3) {
-      const re2 = /\bCO\s*([1-6])\b[^\n]{0,120}?\b(define|explain|apply|analyz|analys|design|evaluat|understand|describe|identify|develop|implement|compare|construct)/gi;
-      let m2: RegExpExecArray | null;
-      while ((m2 = re2.exec(text))) found.add(`CO${m2[1]}`);
+    const add = (n: string) => found.add(`CO${n}`);
+    // "CO1", "CO 1", "C.O.1", "CO-1" anywhere
+    for (const m of text.matchAll(/\bC\.?\s?O\.?\s?-?\s?([1-6])\b/gi)) add(m[1]);
+    // "Course Outcome 1" / "Outcome 1"
+    for (const m of text.matchAll(/\b(?:course\s+)?outcome\s*[-:.]?\s*([1-6])\b/gi)) add(m[1]);
+    // Numbered list inside a "Course Outcomes" section
+    const secIdx = text.search(/course\s+outcome/i);
+    if (secIdx >= 0 && found.size < 3) {
+      const section = text.slice(secIdx, secIdx + 2500);
+      for (const m of section.matchAll(/(?:^|\n|\s)([1-6])\s*[).:]\s*[A-Za-z]/g)) add(m[1]);
     }
     return Array.from(found).sort();
   };
