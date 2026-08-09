@@ -14,12 +14,13 @@ export function roleHome(role: Role): string {
   return role === "designer" ? "/designer" : role === "dqc" ? "/dqc" : "/coord";
 }
 
-// Restrict signups to the three demo staff accounts.
-export const ALLOWED_EMAILS = [
-  "faculty@somaiya.edu",
-  "dqc@somaiya.edu",
-  "examcoord@somaiya.edu",
-];
+// Any @somaiya.edu address may self-register. dqc@ and examcoord@ are the
+// reviewer accounts; every other address becomes a Faculty account.
+export const EMAIL_DOMAIN = "@somaiya.edu";
+
+export function isAllowedEmail(email: string): boolean {
+  return email.trim().toLowerCase().endsWith(EMAIL_DOMAIN);
+}
 
 async function loadAppUser(): Promise<AppUser | null> {
   const { data: userData } = await supabase.auth.getUser();
