@@ -209,11 +209,34 @@ function AuthPage() {
           </div>
         </div>
       </main>
-      <div className="mt-6 px-4 py-2 bg-[#9a1b1b] text-white text-[11px] leading-tight text-center rounded shadow-sm">
-        <div className="font-medium">Designed and Developed by</div>
-        <div>Priya Thombare and Vaishanvi Shinde</div>
-        <div className="mt-1 opacity-90">
-          priya.thombare@somaiya.edu &nbsp;·&nbsp; vaishnavi.ys@somaiya.edu
+      <div className="mt-6 inline-flex flex-col items-center rounded-[2rem] border border-red-100/50 bg-red-50/30 px-8 py-5 shadow-[0_8px_30px_rgba(153,27,27,0.05)] backdrop-blur-xl">
+        <span className="mb-4 text-[9px] font-bold uppercase tracking-[0.25em] text-red-900/50">
+          Designed &amp; Developed By
+        </span>
+        <div className="flex items-center gap-8 sm:gap-12">
+          <div className="flex flex-col items-center">
+            <h4 className="mb-1 font-serif text-[19px] font-semibold leading-none text-red-950">
+              Priya Thombare
+            </h4>
+            <a
+              href="mailto:priya.thombare@somaiya.edu"
+              className="text-[10px] font-medium tracking-wide text-red-800/60 transition-colors duration-300 hover:text-red-900"
+            >
+              priya.thombare@somaiya.edu
+            </a>
+          </div>
+          <div className="h-10 w-px bg-gradient-to-b from-transparent via-red-200/70 to-transparent" />
+          <div className="flex flex-col items-center">
+            <h4 className="mb-1 font-serif text-[19px] font-semibold leading-none text-red-950">
+              Vaishnavi Shinde
+            </h4>
+            <a
+              href="mailto:vaishnavi.ys@somaiya.edu"
+              className="text-[10px] font-medium tracking-wide text-red-800/60 transition-colors duration-300 hover:text-red-900"
+            >
+              vaishnavi.ys@somaiya.edu
+            </a>
+          </div>
         </div>
       </div>
     </div>
