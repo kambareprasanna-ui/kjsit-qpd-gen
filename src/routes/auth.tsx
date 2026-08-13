@@ -100,7 +100,7 @@ function AuthPage() {
     mode === "signin" ? "Sign in" : mode === "signup" ? "Create your account" : "Reset your password";
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       <main className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Logo size={64} />
@@ -209,6 +209,13 @@ function AuthPage() {
           </div>
         </div>
       </main>
+      <div className="mt-6 px-4 py-2 bg-[#9a1b1b] text-white text-[11px] leading-tight text-center rounded shadow-sm">
+        <div className="font-medium">Designed and Developed by</div>
+        <div>Priya Thombare and Vaishanvi Shinde</div>
+        <div className="mt-1 opacity-90">
+          priya.thombare@somaiya.edu &nbsp;·&nbsp; vaishnavi.ys@somaiya.edu
+        </div>
+      </div>
     </div>
   );
 }
