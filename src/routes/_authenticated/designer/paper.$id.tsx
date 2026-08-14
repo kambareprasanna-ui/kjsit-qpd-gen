@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, FileDown, Image as ImageIcon, Pencil, Save, Send, X } from "lucide-react";
+import { CheckCircle2, Download, FileDown, Image as ImageIcon, Pencil, Save, Send, Wand2, X } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
@@ -8,7 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { fileToDataUrl } from "@/lib/parse-file";
 import { exportPaperDocx, exportPaperPdf } from "@/lib/export";
 import { getPattern } from "@/lib/paper-pattern";
+import { reframeQuestionFn } from "@/lib/paper.functions";
 import type { GeneratedSet } from "@/lib/paper.functions";
+
 
 export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
   head: () => ({
@@ -35,6 +37,12 @@ function PaperEditor() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedSets, setEditedSets] = useState<GeneratedSet[] | null>(null);
+  const [reframeOpen, setReframeOpen] = useState(false);
+  const [reframeKey, setReframeKey] = useState("");
+  const [reframing, setReframing] = useState(false);
+  const [reframeResult, setReframeResult] = useState<string | null>(null);
+  const [reframeError, setReframeError] = useState<string | null>(null);
+
 
   const load = async () => {
     const { data } = await supabase.from("papers").select("*").eq("id", id).maybeSingle();
@@ -91,6 +99,39 @@ function PaperEditor() {
   const cancelEdits = () => {
     setEditedSets(null);
     setEditing(false);
+  };
+
+  const runReframe = async () => {
+    const q = sets[activeSetIdx]?.questions.find((x) => x.key === reframeKey);
+    if (!q) return;
+    setReframing(true);
+    setReframeError(null);
+    setReframeResult(null);
+    try {
+      const r = await reframeQuestionFn({
+        data: { text: q.text, bloom: q.bloom, marks: q.marks, courseName: meta.courseName },
+      });
+      setReframeResult(r.text);
+    } catch (e: any) {
+      setReframeError(e?.message ?? "Could not reframe this question.");
+    }
+    setReframing(false);
+  };
+
+  const applyReframe = async () => {
+    if (!reframeResult) return;
+    const base: GeneratedSet[] = JSON.parse(JSON.stringify(sets));
+    const q = base[activeSetIdx]?.questions.find((x) => x.key === reframeKey);
+    if (!q) return;
+    q.text = reframeResult;
+    setSaving(true);
+    await supabase.from("papers").update({ sets: base }).eq("id", id);
+    setSaving(false);
+    setEditedSets(null);
+    setReframeOpen(false);
+    setReframeResult(null);
+    setReframeKey("");
+    await load();
   };
 
   const finalizeSet = async (idx: number) => {
@@ -211,13 +252,26 @@ function PaperEditor() {
               <ImageIcon className="w-4 h-4" /> Add Diagram
             </button>
             {!editing ? (
-              <button
-                onClick={() => setEditing(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
-              >
-                <Pencil className="w-4 h-4" /> Edit Question Paper
-              </button>
+              <>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                >
+                  <Pencil className="w-4 h-4" /> Edit Question Paper
+                </button>
+                <button
+                  onClick={() => {
+                    setReframeResult(null);
+                    setReframeError(null);
+                    setReframeOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                >
+                  <Wand2 className="w-4 h-4" /> Reframe Question
+                </button>
+              </>
             ) : (
+
               <>
                 <button
                   onClick={saveEdits}
@@ -290,6 +344,81 @@ function PaperEditor() {
           </div>
         </div>
       )}
+
+      {reframeOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Reframe question</h3>
+              <button onClick={() => setReframeOpen(false)} aria-label="Close reframe dialog" className="p-1 hover:bg-accent rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <label className="text-sm block">Question</label>
+              <select
+                value={reframeKey}
+                onChange={(e) => {
+                  setReframeKey(e.target.value);
+                  setReframeResult(null);
+                  setReframeError(null);
+                }}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+              >
+                <option value="">Select question…</option>
+                {(sets[activeSetIdx]?.questions ?? []).map((q) => (
+                  <option key={q.key} value={q.key}>
+                    {q.key} · {q.bloom} · {q.marks}m
+                  </option>
+                ))}
+              </select>
+
+              {reframeKey && (
+                <div className="text-xs text-muted-foreground border border-border rounded-md p-3">
+                  <b>Current:</b>{" "}
+                  {sets[activeSetIdx]?.questions.find((q) => q.key === reframeKey)?.text}
+                </div>
+              )}
+
+              <button
+                onClick={runReframe}
+                disabled={!reframeKey || reframing}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+              >
+                <Wand2 className="w-4 h-4" /> {reframing ? "Reframing…" : "Reframe"}
+              </button>
+
+              {reframeError && <p className="text-sm text-destructive">{reframeError}</p>}
+
+              {reframeResult && (
+                <div className="space-y-3">
+                  <div className="text-sm border border-brand/40 bg-brand-muted rounded-md p-3">{reframeResult}</div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={applyReframe}
+                      disabled={saving}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" /> {saving ? "Saving…" : "Apply to paper"}
+                    </button>
+                    <button
+                      onClick={runReframe}
+                      disabled={reframing}
+                      className="px-4 py-2 border border-border rounded-md text-sm hover:bg-accent disabled:opacity-50"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                The question is twisted only using Bloom's Taxonomy action verbs for its level.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }
