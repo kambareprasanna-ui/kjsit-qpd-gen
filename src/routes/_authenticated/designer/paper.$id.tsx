@@ -344,6 +344,81 @@ function PaperEditor() {
           </div>
         </div>
       )}
+
+      {reframeOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Reframe question</h3>
+              <button onClick={() => setReframeOpen(false)} aria-label="Close reframe dialog" className="p-1 hover:bg-accent rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <label className="text-sm block">Question</label>
+              <select
+                value={reframeKey}
+                onChange={(e) => {
+                  setReframeKey(e.target.value);
+                  setReframeResult(null);
+                  setReframeError(null);
+                }}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+              >
+                <option value="">Select question…</option>
+                {(sets[activeSetIdx]?.questions ?? []).map((q) => (
+                  <option key={q.key} value={q.key}>
+                    {q.key} · {q.bloom} · {q.marks}m
+                  </option>
+                ))}
+              </select>
+
+              {reframeKey && (
+                <div className="text-xs text-muted-foreground border border-border rounded-md p-3">
+                  <b>Current:</b>{" "}
+                  {sets[activeSetIdx]?.questions.find((q) => q.key === reframeKey)?.text}
+                </div>
+              )}
+
+              <button
+                onClick={runReframe}
+                disabled={!reframeKey || reframing}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+              >
+                <Wand2 className="w-4 h-4" /> {reframing ? "Reframing…" : "Reframe"}
+              </button>
+
+              {reframeError && <p className="text-sm text-destructive">{reframeError}</p>}
+
+              {reframeResult && (
+                <div className="space-y-3">
+                  <div className="text-sm border border-brand/40 bg-brand-muted rounded-md p-3">{reframeResult}</div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={applyReframe}
+                      disabled={saving}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" /> {saving ? "Saving…" : "Apply to paper"}
+                    </button>
+                    <button
+                      onClick={runReframe}
+                      disabled={reframing}
+                      className="px-4 py-2 border border-border rounded-md text-sm hover:bg-accent disabled:opacity-50"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                The question is twisted only using Bloom's Taxonomy action verbs for its level.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }
