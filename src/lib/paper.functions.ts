@@ -175,53 +175,70 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
-    const verbs: Record<string, string> = {
-      Remember: "define, list, state, name, identify, recall, label, recognize, describe",
-      Understand: "explain, summarize, interpret, compare, classify, illustrate, differentiate, discuss",
-      Apply: "apply, solve, compute, demonstrate, implement, calculate, construct, use, sketch",
-    };
+    const allowed = allowedVerbs(data.bloom);
+    const forbidden = forbiddenVerbs(data.bloom);
 
     const sys =
       "You rephrase university exam questions. Keep the SAME underlying concept, topic and scope as the original question. " +
-      "Only twist the wording/framing. The question MUST start with (or clearly use) an action verb from the allowed Bloom's Taxonomy level verb list. " +
+      "Only twist the wording/framing. " +
+      "HARD RULE: the reframed question MUST begin with an action verb taken VERBATIM from the ALLOWED verb list for the given Bloom level. " +
+      "NEVER use a verb from any other Bloom level (e.g. do not turn 'compare' (Understanding) into 'distinguish' (Analyzing)). " +
       "Do not change the marks weight or add new topics. Return ONLY JSON.";
 
-    const user = `Original question: ${data.text}
+    const buildUser = (note?: string) => `Original question: ${data.text}
 Bloom level: ${data.bloom}
-Allowed Bloom action verbs (use one of these): ${verbs[data.bloom]}
-Marks: ${data.marks}${data.courseName ? `\nCourse: ${data.courseName}` : ""}
+ALLOWED verbs (use exactly one of these, as the leading verb): ${allowed.join(", ")}
+FORBIDDEN verbs (belong to other Bloom levels — never use): ${forbidden.join(", ")}
+Marks: ${data.marks}${data.courseName ? `\nCourse: ${data.courseName}` : ""}${note ? `\n\n${note}` : ""}
 
 Return exactly: {"text":"<reframed question>"}`;
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
-      body: JSON.stringify({
-        model: "openai/gpt-5.5",
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: user },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+    const callAi = async (note?: string): Promise<string> => {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+        body: JSON.stringify({
+          model: "openai/gpt-5.5",
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: buildUser(note) },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
 
-    if (!res.ok) {
-      const txt = await res.text();
-      if (res.status === 429) throw new Error("AI rate limit reached. Please try again shortly.");
-      if (res.status === 402) throw new Error("AI credits exhausted. Please top up your workspace.");
-      throw new Error(`AI error ${res.status}: ${txt.slice(0, 300)}`);
-    }
+      if (!res.ok) {
+        const txt = await res.text();
+        if (res.status === 429) throw new Error("AI rate limit reached. Please try again shortly.");
+        if (res.status === 402) throw new Error("AI credits exhausted. Please top up your workspace.");
+        throw new Error(`AI error ${res.status}: ${txt.slice(0, 300)}`);
+      }
 
-    const json: any = await res.json();
-    const content: string = json.choices?.[0]?.message?.content ?? "{}";
-    let out: { text?: string };
-    try {
-      out = JSON.parse(content);
-    } catch {
-      const m = content.match(/\{[\s\S]*\}/);
-      out = m ? JSON.parse(m[0]) : {};
+      const json: any = await res.json();
+      const content: string = json.choices?.[0]?.message?.content ?? "{}";
+      let out: { text?: string };
+      try {
+        out = JSON.parse(content);
+      } catch {
+        const m = content.match(/\{[\s\S]*\}/);
+        out = m ? JSON.parse(m[0]) : {};
+      }
+      if (!out.text) throw new Error("AI did not return a reframed question.");
+      return out.text;
+    };
+
+    let text = await callAi();
+    if (!usesAllowedVerb(text, data.bloom)) {
+      // One strict retry before giving up.
+      text = await callAi(
+        `Your previous attempt "${text}" used a verb outside the ${data.bloom} level. Rewrite it so it STARTS with one of the ALLOWED verbs listed above.`,
+      );
+      if (!usesAllowedVerb(text, data.bloom)) {
+        throw new Error(
+          `Could not reframe within the "${data.bloom}" Bloom level verbs. Please try again.`,
+        );
+      }
     }
-    if (!out.text) throw new Error("AI did not return a reframed question.");
-    return { text: out.text };
+    return { text };
   });
+
