@@ -175,7 +175,7 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
-    const allowed = allowedVerbs(data.bloom);
+    const allowedList = allowedVerbs(data.bloom);
     const forbidden = forbiddenVerbs(data.bloom);
 
     const sys =
