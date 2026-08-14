@@ -252,13 +252,26 @@ function PaperEditor() {
               <ImageIcon className="w-4 h-4" /> Add Diagram
             </button>
             {!editing ? (
-              <button
-                onClick={() => setEditing(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
-              >
-                <Pencil className="w-4 h-4" /> Edit Question Paper
-              </button>
+              <>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                >
+                  <Pencil className="w-4 h-4" /> Edit Question Paper
+                </button>
+                <button
+                  onClick={() => {
+                    setReframeResult(null);
+                    setReframeError(null);
+                    setReframeOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                >
+                  <Wand2 className="w-4 h-4" /> Reframe Question
+                </button>
+              </>
             ) : (
+
               <>
                 <button
                   onClick={saveEdits}
