@@ -101,6 +101,39 @@ function PaperEditor() {
     setEditing(false);
   };
 
+  const runReframe = async () => {
+    const q = sets[activeSetIdx]?.questions.find((x) => x.key === reframeKey);
+    if (!q) return;
+    setReframing(true);
+    setReframeError(null);
+    setReframeResult(null);
+    try {
+      const r = await reframeQuestionFn({
+        data: { text: q.text, bloom: q.bloom, marks: q.marks, courseName: meta.courseName },
+      });
+      setReframeResult(r.text);
+    } catch (e: any) {
+      setReframeError(e?.message ?? "Could not reframe this question.");
+    }
+    setReframing(false);
+  };
+
+  const applyReframe = async () => {
+    if (!reframeResult) return;
+    const base: GeneratedSet[] = JSON.parse(JSON.stringify(sets));
+    const q = base[activeSetIdx]?.questions.find((x) => x.key === reframeKey);
+    if (!q) return;
+    q.text = reframeResult;
+    setSaving(true);
+    await supabase.from("papers").update({ sets: base }).eq("id", id);
+    setSaving(false);
+    setEditedSets(null);
+    setReframeOpen(false);
+    setReframeResult(null);
+    setReframeKey("");
+    await load();
+  };
+
   const finalizeSet = async (idx: number) => {
     setSaving(true);
     await supabase.from("papers").update({ selected_set_index: idx }).eq("id", id);
