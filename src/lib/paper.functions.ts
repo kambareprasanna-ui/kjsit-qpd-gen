@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { PATTERN_20, PATTERN_30, type PatternSlot } from "./paper-pattern";
+import { allowedVerbs, forbiddenVerbs, usesAllowedVerb } from "./bloom-verbs";
 
 const Input = z.object({
   syllabus: z.string(),
