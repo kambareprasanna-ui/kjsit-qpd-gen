@@ -37,6 +37,12 @@ function PaperEditor() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedSets, setEditedSets] = useState<GeneratedSet[] | null>(null);
+  const [reframeOpen, setReframeOpen] = useState(false);
+  const [reframeKey, setReframeKey] = useState("");
+  const [reframeText, setReframeText] = useState("");
+  const [reframing, setReframing] = useState(false);
+  const [reframeErr, setReframeErr] = useState("");
+
 
   const load = async () => {
     const { data } = await supabase.from("papers").select("*").eq("id", id).maybeSingle();
