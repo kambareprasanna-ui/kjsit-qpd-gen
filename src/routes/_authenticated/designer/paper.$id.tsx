@@ -252,6 +252,19 @@ function PaperEditor() {
             >
               <ImageIcon className="w-4 h-4" /> Add Diagram
             </button>
+            <button
+              onClick={() => {
+                setReframeErr("");
+                setReframeText("");
+                setReframeKey("");
+                setReframeOpen(true);
+              }}
+              disabled={editing}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent disabled:opacity-50"
+            >
+              <Sparkles className="w-4 h-4" /> Reframe Question
+            </button>
+
             {!editing ? (
               <button
                 onClick={() => setEditing(true)}
