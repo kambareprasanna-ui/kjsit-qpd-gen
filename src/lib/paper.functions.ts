@@ -188,7 +188,7 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
 
     const buildUser = (note?: string) => `Original question: ${data.text}
 Bloom level: ${data.bloom}
-ALLOWED verbs (use exactly one of these, as the leading verb): ${allowed.join(", ")}
+ALLOWED verbs (use exactly one of these, as the leading verb): ${allowedList.join(", ")}
 FORBIDDEN verbs (belong to other Bloom levels — never use): ${forbidden.join(", ")}
 Marks: ${data.marks}${data.courseName ? `\nCourse: ${data.courseName}` : ""}${note ? `\n\n${note}` : ""}
 
