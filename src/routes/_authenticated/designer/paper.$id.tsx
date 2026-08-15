@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, FileDown, Image as ImageIcon, Pencil, Save, Send, X } from "lucide-react";
+import { CheckCircle2, Download, FileDown, Image as ImageIcon, Pencil, Save, Send, Sparkles, X } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
@@ -8,7 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { fileToDataUrl } from "@/lib/parse-file";
 import { exportPaperDocx, exportPaperPdf } from "@/lib/export";
 import { getPattern } from "@/lib/paper-pattern";
+import { reframeQuestionFn } from "@/lib/reframe.functions";
 import type { GeneratedSet } from "@/lib/paper.functions";
+
 
 export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
   head: () => ({
