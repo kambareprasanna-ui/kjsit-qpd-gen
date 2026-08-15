@@ -345,6 +345,81 @@ function PaperEditor() {
           </div>
         </div>
       )}
+
+      {reframeOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Reframe question</h3>
+              <button onClick={() => setReframeOpen(false)} aria-label="Close reframe dialog" className="p-1 hover:bg-accent rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <label className="text-sm block">Question</label>
+              <select
+                value={reframeKey}
+                onChange={(e) => {
+                  setReframeKey(e.target.value);
+                  setReframeText("");
+                  setReframeErr("");
+                }}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+              >
+                <option value="">Select question…</option>
+                {pattern.map((p) => (
+                  <option key={p.key} value={p.key}>{p.key}</option>
+                ))}
+              </select>
+
+              {reframeKey && (
+                <div className="text-sm p-3 rounded-md bg-muted/50 border border-border">
+                  <div className="text-xs text-muted-foreground mb-1">Current</div>
+                  {sets[activeSetIdx]?.questions.find((x) => x.key === reframeKey)?.text ?? "—"}
+                </div>
+              )}
+
+              <button
+                onClick={runReframe}
+                disabled={!reframeKey || reframing}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+              >
+                <Sparkles className="w-4 h-4" /> {reframing ? "Reframing…" : "Reframe"}
+              </button>
+
+              {reframeErr && <p className="text-sm text-destructive">{reframeErr}</p>}
+
+              {reframeText && (
+                <>
+                  <label className="text-sm block">Reframed question</label>
+                  <textarea
+                    value={reframeText}
+                    onChange={(e) => setReframeText(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveReframe}
+                      disabled={saving}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" /> {saving ? "Saving…" : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setReframeOpen(false)}
+                      className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
