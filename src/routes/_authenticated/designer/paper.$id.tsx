@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, FileDown, Image as ImageIcon, Pencil, Save, Send, X } from "lucide-react";
+import { CheckCircle2, Download, FileDown, Image as ImageIcon, Pencil, Save, Send, Sparkles, X } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
@@ -8,7 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { fileToDataUrl } from "@/lib/parse-file";
 import { exportPaperDocx, exportPaperPdf } from "@/lib/export";
 import { getPattern } from "@/lib/paper-pattern";
+import { reframeQuestionFn } from "@/lib/reframe.functions";
 import type { GeneratedSet } from "@/lib/paper.functions";
+
 
 export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
   head: () => ({
@@ -35,6 +37,12 @@ function PaperEditor() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedSets, setEditedSets] = useState<GeneratedSet[] | null>(null);
+  const [reframeOpen, setReframeOpen] = useState(false);
+  const [reframeKey, setReframeKey] = useState("");
+  const [reframeText, setReframeText] = useState("");
+  const [reframing, setReframing] = useState(false);
+  const [reframeErr, setReframeErr] = useState("");
+
 
   const load = async () => {
     const { data } = await supabase.from("papers").select("*").eq("id", id).maybeSingle();
@@ -92,6 +100,40 @@ function PaperEditor() {
     setEditedSets(null);
     setEditing(false);
   };
+
+  const runReframe = async () => {
+    const q = sets[activeSetIdx]?.questions.find((x) => x.key === reframeKey);
+    if (!q) return;
+    setReframing(true);
+    setReframeErr("");
+    try {
+      const res = await reframeQuestionFn({
+        data: { text: q.text, bloom: q.bloom, marks: q.marks, courseName: meta.courseName },
+      });
+      setReframeText(res.text);
+    } catch (e: any) {
+      setReframeErr(e?.message ?? "Could not reframe this question.");
+    } finally {
+      setReframing(false);
+    }
+  };
+
+  const saveReframe = async () => {
+    if (!reframeKey || !reframeText.trim()) return;
+    const base: GeneratedSet[] = JSON.parse(JSON.stringify(editedSets ?? paper.sets ?? []));
+    const q = base[activeSetIdx]?.questions.find((x) => x.key === reframeKey);
+    if (!q) return;
+    q.text = reframeText.trim();
+    setSaving(true);
+    await supabase.from("papers").update({ sets: base }).eq("id", id);
+    setSaving(false);
+    setEditedSets(null);
+    setReframeOpen(false);
+    setReframeKey("");
+    setReframeText("");
+    await load();
+  };
+
 
   const finalizeSet = async (idx: number) => {
     setSaving(true);
@@ -210,6 +252,19 @@ function PaperEditor() {
             >
               <ImageIcon className="w-4 h-4" /> Add Diagram
             </button>
+            <button
+              onClick={() => {
+                setReframeErr("");
+                setReframeText("");
+                setReframeKey("");
+                setReframeOpen(true);
+              }}
+              disabled={editing}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent disabled:opacity-50"
+            >
+              <Sparkles className="w-4 h-4" /> Reframe Question
+            </button>
+
             {!editing ? (
               <button
                 onClick={() => setEditing(true)}
@@ -290,6 +345,81 @@ function PaperEditor() {
           </div>
         </div>
       )}
+
+      {reframeOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Reframe question</h3>
+              <button onClick={() => setReframeOpen(false)} aria-label="Close reframe dialog" className="p-1 hover:bg-accent rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <label className="text-sm block">Question</label>
+              <select
+                value={reframeKey}
+                onChange={(e) => {
+                  setReframeKey(e.target.value);
+                  setReframeText("");
+                  setReframeErr("");
+                }}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+              >
+                <option value="">Select question…</option>
+                {pattern.map((p) => (
+                  <option key={p.key} value={p.key}>{p.key}</option>
+                ))}
+              </select>
+
+              {reframeKey && (
+                <div className="text-sm p-3 rounded-md bg-muted/50 border border-border">
+                  <div className="text-xs text-muted-foreground mb-1">Current</div>
+                  {sets[activeSetIdx]?.questions.find((x) => x.key === reframeKey)?.text ?? "—"}
+                </div>
+              )}
+
+              <button
+                onClick={runReframe}
+                disabled={!reframeKey || reframing}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+              >
+                <Sparkles className="w-4 h-4" /> {reframing ? "Reframing…" : "Reframe"}
+              </button>
+
+              {reframeErr && <p className="text-sm text-destructive">{reframeErr}</p>}
+
+              {reframeText && (
+                <>
+                  <label className="text-sm block">Reframed question</label>
+                  <textarea
+                    value={reframeText}
+                    onChange={(e) => setReframeText(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveReframe}
+                      disabled={saving}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" /> {saving ? "Saving…" : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setReframeOpen(false)}
+                      className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
