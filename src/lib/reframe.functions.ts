@@ -13,11 +13,11 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ReframeInput.parse(d))
   .handler(async ({ data, context }): Promise<{ text: string }> => {
-    const { data: allowed } = await context.supabase.rpc("has_role", {
+    const { data: isFaculty } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
       _role: "designer",
     });
-    if (!allowed) throw new Error("Only faculty can reframe questions.");
+    if (!isFaculty) throw new Error("Only faculty can reframe questions.");
 
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
