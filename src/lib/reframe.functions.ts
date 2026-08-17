@@ -46,14 +46,15 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
               content:
                 "You rephrase university exam questions. Keep the same topic, technical content, difficulty and marks weight. " +
                 `The question MUST stay at Bloom's Taxonomy level "${levelKey}" (Revised Bloom's Taxonomy, Anderson & Krathwohl 2001). ` +
-                `It MUST start with exactly one action verb from this list for that level: ${allowed.join(", ")}. ` +
-                "Never use a verb belonging to any other Bloom level. Do not add new sub-parts. " +
-                "Return ONLY the reframed question sentence, no quotes, no commentary." +
+                `It MUST start with exactly one action verb from this EXCLUSIVE list for that level: ${allowed.join(", ")}. ` +
+                "You may only use action verbs from that same list anywhere in the question. " +
+                "Do not use any action verb belonging to any other Bloom level. " +
+                "Do not add new sub-parts. Return ONLY the reframed question sentence, no quotes, no commentary." +
                 extra,
             },
             {
               role: "user",
-              content: `Course: ${data.courseName ?? "-"}\nBloom level: ${levelKey}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it starting with a ${levelKey}-level action verb from the allowed list.`,
+              content: `Course: ${data.courseName ?? "-"}\nBloom level: ${levelKey}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it using only ${levelKey}-level action verbs from the allowed list.`,
             },
           ],
         }),
@@ -72,10 +73,30 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     const startsWithAllowed = (s: string) =>
       allowed.some((v) => s.toLowerCase().replace(/^[^a-z]+/, "").startsWith(v.toLowerCase()));
 
+    const containsOtherLevelVerb = (s: string) => {
+      const words = s.toLowerCase().split(/\s+/);
+      for (const [level, verbs] of Object.entries(VERBS)) {
+        if (level === levelKey) continue;
+        for (const v of verbs) {
+          const normalized = v.toLowerCase();
+          if (normalized.length <= 2) continue;
+          if (words.includes(normalized) || s.toLowerCase().includes(` ${normalized}`) || s.toLowerCase().startsWith(normalized)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
     let out = await callAI();
     if (out && !startsWithAllowed(out)) {
       out = await callAI(
-        ` Your previous attempt did not begin with an allowed ${levelKey} verb. Begin the sentence with one of: ${allowed.join(", ")}.`,
+        ` Your previous attempt did not begin with an allowed ${levelKey} verb. Begin the sentence with exactly one of: ${allowed.join(", ")}.`,
+      );
+    }
+    if (out && containsOtherLevelVerb(out)) {
+      out = await callAI(
+        ` Your previous attempt used an action verb from a different Bloom level. Rewrite the question using ONLY ${levelKey}-level verbs from this list: ${allowed.join(", ")}. Do not use any other action verb.`,
       );
     }
     if (!out) throw new Error("AI returned an empty reframed question.");
