@@ -22,41 +22,63 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
-      body: JSON.stringify({
-        model: "openai/gpt-5.5",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You rephrase university exam questions. Keep the same topic, technical content, difficulty, marks weight and Bloom level. " +
-              "The reframed question MUST begin with (or clearly use) an action verb that belongs to the SAME Bloom's Taxonomy level as given. " +
-              "Allowed verbs per level:\n" +
-              "Remember: define, list, state, name, recall, identify, label, recognize, write, mention.\n" +
-              "Understand: explain, describe, compare, differentiate, discuss, summarize, interpret, illustrate, classify, distinguish.\n" +
-              "Apply: apply, solve, compute, calculate, demonstrate, show, implement, construct, use, design.\n" +
-              "Never borrow a verb from another level. Do not add new sub-parts. " +
-              "Return ONLY the reframed question sentence, no quotes, no commentary.",
-          },
-          {
-            role: "user",
-            content: `Course: ${data.courseName ?? "-"}\nBloom level: ${data.bloom}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it using a ${data.bloom}-level action verb only.`,
-          },
-        ],
-      }),
-    });
+    const VERBS: Record<string, string[]> = {
+      Remember: ["choose","define","find","label","list","match","name","omit","recall","relate","select","show","spell","tell","state","identify"],
+      Understand: ["classify","compare","contrast","demonstrate","explain","extend","illustrate","infer","interpret","outline","rephrase","show","summarize","translate","describe"],
+      Apply: ["apply","build","choose","construct","develop","experiment with","identify","interview","make use of","model","organize","plan","select","solve","utilize","compute","calculate"],
+      Analyze: ["analyze","categorize","classify","compare","contrast","discover","dissect","distinguish","divide","examine","inspect","simplify","survey","test for"],
+      Evaluate: ["appraise","assess","conclude","criticize","decide","defend","determine","disprove","estimate","evaluate","judge","justify","measure","prioritize","prove","rate","recommend","support"],
+      Create: ["adapt","build","change","combine","compile","compose","construct","create","design","develop","elaborate","formulate","improve","invent","modify","originate","plan","propose","predict"],
+    };
+    const levelKey =
+      Object.keys(VERBS).find((k) => data.bloom.toLowerCase().startsWith(k.toLowerCase().slice(0, 5))) ?? "Understand";
+    const allowed = VERBS[levelKey]!;
 
-    if (!res.ok) {
-      const txt = await res.text();
-      if (res.status === 429) throw new Error("AI rate limit reached. Please try again shortly.");
-      if (res.status === 402) throw new Error("AI credits exhausted. Please top up your workspace.");
-      throw new Error(`AI error ${res.status}: ${txt.slice(0, 300)}`);
+    const callAI = async (extra = "") => {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+        body: JSON.stringify({
+          model: "openai/gpt-5.5",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You rephrase university exam questions. Keep the same topic, technical content, difficulty and marks weight. " +
+                `The question MUST stay at Bloom's Taxonomy level "${levelKey}" (Revised Bloom's Taxonomy, Anderson & Krathwohl 2001). ` +
+                `It MUST start with exactly one action verb from this list for that level: ${allowed.join(", ")}. ` +
+                "Never use a verb belonging to any other Bloom level. Do not add new sub-parts. " +
+                "Return ONLY the reframed question sentence, no quotes, no commentary." +
+                extra,
+            },
+            {
+              role: "user",
+              content: `Course: ${data.courseName ?? "-"}\nBloom level: ${levelKey}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it starting with a ${levelKey}-level action verb from the allowed list.`,
+            },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        if (res.status === 429) throw new Error("AI rate limit reached. Please try again shortly.");
+        if (res.status === 402) throw new Error("AI credits exhausted. Please top up your workspace.");
+        throw new Error(`AI error ${res.status}: ${txt.slice(0, 300)}`);
+      }
+      const json: any = await res.json();
+      return ((json.choices?.[0]?.message?.content ?? "") as string).trim().replace(/^["']|["']$/g, "");
+    };
+
+    const startsWithAllowed = (s: string) =>
+      allowed.some((v) => s.toLowerCase().replace(/^[^a-z]+/, "").startsWith(v.toLowerCase()));
+
+    let out = await callAI();
+    if (out && !startsWithAllowed(out)) {
+      out = await callAI(
+        ` Your previous attempt did not begin with an allowed ${levelKey} verb. Begin the sentence with one of: ${allowed.join(", ")}.`,
+      );
     }
-
-    const json: any = await res.json();
-    const out: string = (json.choices?.[0]?.message?.content ?? "").trim();
     if (!out) throw new Error("AI returned an empty reframed question.");
-    return { text: out.replace(/^["']|["']$/g, "") };
+    return { text: out };
   });
+
