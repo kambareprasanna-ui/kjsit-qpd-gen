@@ -367,14 +367,16 @@ function PaperEditor() {
                 className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
               >
                 <option value="">Select question…</option>
-                {pattern.map((p) => (
-                  <option key={p.key} value={p.key}>{p.key}</option>
+                {(sets[activeSetIdx]?.questions ?? []).map((q) => (
+                  <option key={q.key} value={q.key}>
+                    {q.key}) · {q.bloom} · {q.marks}m
+                  </option>
                 ))}
               </select>
 
               {reframeKey && (
                 <div className="text-sm p-3 rounded-md bg-muted/50 border border-border">
-                  <div className="text-xs text-muted-foreground mb-1">Current</div>
+                  <span className="font-medium">Current: </span>
                   {sets[activeSetIdx]?.questions.find((x) => x.key === reframeKey)?.text ?? "—"}
                 </div>
               )}
@@ -391,28 +393,31 @@ function PaperEditor() {
 
               {reframeText && (
                 <>
-                  <label className="text-sm block">Reframed question</label>
                   <textarea
                     value={reframeText}
                     onChange={(e) => setReframeText(e.target.value)}
-                    rows={4}
+                    rows={3}
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
                   />
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <button
                       onClick={saveReframe}
                       disabled={saving}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 disabled:opacity-50"
                     >
-                      <Save className="w-4 h-4" /> {saving ? "Saving…" : "Save"}
+                      <Save className="w-4 h-4" /> {saving ? "Saving…" : "Apply to paper"}
                     </button>
                     <button
-                      onClick={() => setReframeOpen(false)}
-                      className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                      onClick={runReframe}
+                      disabled={reframing}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm hover:bg-accent disabled:opacity-50"
                     >
-                      Cancel
+                      {reframing ? "Reframing…" : "Try again"}
                     </button>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    The question is twisted only using Bloom's Taxonomy action verbs for its level.
+                  </p>
                 </>
               )}
             </div>
