@@ -23,12 +23,12 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
     const VERBS: Record<string, string[]> = {
-      Remember: ["choose","define","find","label","list","match","name","omit","recall","relate","select","show","spell","tell","state","identify"],
-      Understand: ["classify","compare","contrast","demonstrate","explain","extend","illustrate","infer","interpret","outline","rephrase","show","summarize","translate","describe"],
-      Apply: ["apply","build","choose","construct","develop","experiment with","identify","interview","make use of","model","organize","plan","select","solve","utilize","compute","calculate"],
-      Analyze: ["analyze","categorize","classify","compare","contrast","discover","dissect","distinguish","divide","examine","inspect","simplify","survey","test for"],
-      Evaluate: ["appraise","assess","conclude","criticize","decide","defend","determine","disprove","estimate","evaluate","judge","justify","measure","prioritize","prove","rate","recommend","support"],
-      Create: ["adapt","build","change","combine","compile","compose","construct","create","design","develop","elaborate","formulate","improve","invent","modify","originate","plan","propose","predict"],
+      Remember: ["Choose","Define","Find","How","Label","List","Match","Name","Omit","Recall","Relate","Select","Show","Spell","Tell","What","When","Where","Which","Who","Why"],
+      Understand: ["Classify","Compare","Contrast","Demonstrate","Explain","Extend","Illustrate","Infer","Interpret","Outline","Relate","Rephrase","Show","Summarize","Translate"],
+      Apply: ["Apply","Build","Choose","Construct","Develop","Experiment with","Identify","Interview","Make use of","Model","Organize","Plan","Select","Solve","Utilize"],
+      Analyze: ["Analyze","Assume","Categorize","Classify","Compare","Conclusion","Contrast","Discover","Dissect","Distinguish","Divide","Examine","Function","Inference","Inspect","List","Motive","Relationships","Simplify","Survey","Take part in","Test for","Theme"],
+      Evaluate: ["Agree","Appraise","Assess","Award","Choose","Compare","Conclude","Criteria","Criticize","Decide","Deduct","Defend","Determine","Disprove","Estimate","Evaluate","Explain","Importance","Influence","Interpret","Judge","Justify","Mark","Measure","Opinion","Perceive","Prioritize","Prove","Rate","Recommend","Rule on","Select","Support","Value"],
+      Create: ["Adapt","Build","Change","Choose","Combine","Compile","Compose","Construct","Create","Delete","Design","Develop","Discuss","Elaborate","Estimate","Formulate","Happen","Imagine","Improve","Invent","Make up","Maximize","Minimize","Modify","Original","Originate","Plan","Predict","Propose","Solution","Solve","Suppose","Test","Theory"],
     };
     const levelKey =
       Object.keys(VERBS).find((k) => data.bloom.toLowerCase().startsWith(k.toLowerCase().slice(0, 5))) ?? "Understand";
