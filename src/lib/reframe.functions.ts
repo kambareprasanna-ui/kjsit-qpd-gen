@@ -31,12 +31,18 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
           {
             role: "system",
             content:
-              "You rephrase university exam questions. Keep the same topic, difficulty, marks weight and Bloom level. " +
-              "Do not change the technical content or add new sub-parts. Return ONLY the reframed question sentence, no quotes, no commentary.",
+              "You rephrase university exam questions. Keep the same topic, technical content, difficulty, marks weight and Bloom level. " +
+              "The reframed question MUST begin with (or clearly use) an action verb that belongs to the SAME Bloom's Taxonomy level as given. " +
+              "Allowed verbs per level:\n" +
+              "Remember: define, list, state, name, recall, identify, label, recognize, write, mention.\n" +
+              "Understand: explain, describe, compare, differentiate, discuss, summarize, interpret, illustrate, classify, distinguish.\n" +
+              "Apply: apply, solve, compute, calculate, demonstrate, show, implement, construct, use, design.\n" +
+              "Never borrow a verb from another level. Do not add new sub-parts. " +
+              "Return ONLY the reframed question sentence, no quotes, no commentary.",
           },
           {
             role: "user",
-            content: `Course: ${data.courseName ?? "-"}\nBloom level: ${data.bloom}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it.`,
+            content: `Course: ${data.courseName ?? "-"}\nBloom level: ${data.bloom}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it using a ${data.bloom}-level action verb only.`,
           },
         ],
       }),

@@ -367,14 +367,16 @@ function PaperEditor() {
                 className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
               >
                 <option value="">Select question…</option>
-                {pattern.map((p) => (
-                  <option key={p.key} value={p.key}>{p.key}</option>
+                {(sets[activeSetIdx]?.questions ?? []).map((q) => (
+                  <option key={q.key} value={q.key}>
+                    {q.key}) · {q.bloom} · {q.marks}m
+                  </option>
                 ))}
               </select>
 
               {reframeKey && (
                 <div className="text-sm p-3 rounded-md bg-muted/50 border border-border">
-                  <div className="text-xs text-muted-foreground mb-1">Current</div>
+                  <span className="font-medium">Current: </span>
                   {sets[activeSetIdx]?.questions.find((x) => x.key === reframeKey)?.text ?? "—"}
                 </div>
               )}
