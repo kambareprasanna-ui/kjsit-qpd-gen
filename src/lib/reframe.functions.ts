@@ -23,15 +23,19 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
     const VERBS: Record<string, string[]> = {
-      Remember: ["Choose","Define","Find","How","Label","List","Match","Name","Omit","Recall","Relate","Select","Show","Spell","Tell","What","When","Where","Which","Who","Why"],
-      Understand: ["Classify","Compare","Contrast","Demonstrate","Explain","Extend","Illustrate","Infer","Interpret","Outline","Relate","Rephrase","Show","Summarize","Translate"],
-      Apply: ["Apply","Build","Choose","Construct","Develop","Experiment with","Identify","Interview","Make use of","Model","Organize","Plan","Select","Solve","Utilize"],
-      Analyze: ["Analyze","Assume","Categorize","Classify","Compare","Conclusion","Contrast","Discover","Dissect","Distinguish","Divide","Examine","Function","Inference","Inspect","List","Motive","Relationships","Simplify","Survey","Take part in","Test for","Theme"],
-      Evaluate: ["Agree","Appraise","Assess","Award","Choose","Compare","Conclude","Criteria","Criticize","Decide","Deduct","Defend","Determine","Disprove","Estimate","Evaluate","Explain","Importance","Influence","Interpret","Judge","Justify","Mark","Measure","Opinion","Perceive","Prioritize","Prove","Rate","Recommend","Rule on","Select","Support","Value"],
-      Create: ["Adapt","Build","Change","Choose","Combine","Compile","Compose","Construct","Create","Delete","Design","Develop","Discuss","Elaborate","Estimate","Formulate","Happen","Imagine","Improve","Invent","Make up","Maximize","Minimize","Modify","Original","Originate","Plan","Predict","Propose","Solution","Solve","Suppose","Test","Theory"],
+      Remember: ["choose","define","find","label","list","match","name","omit","recall","relate","select","show","spell","tell","state","identify"],
+      Understand: ["classify","compare","contrast","demonstrate","explain","extend","illustrate","infer","interpret","outline","rephrase","show","summarize","translate","describe"],
+      Apply: ["apply","build","choose","construct","develop","experiment with","identify","interview","make use of","model","organize","plan","select","solve","utilize","compute","calculate"],
+      Analyze: ["analyze","categorize","classify","compare","contrast","discover","dissect","distinguish","divide","examine","inspect","simplify","survey","test for"],
+      Evaluate: ["appraise","assess","conclude","criticize","decide","defend","determine","disprove","estimate","evaluate","judge","justify","measure","prioritize","prove","rate","recommend","support"],
+      Create: ["adapt","build","change","combine","compile","compose","construct","create","design","develop","elaborate","formulate","improve","invent","modify","originate","plan","propose","predict"],
     };
+    const bloomRaw = data.bloom.trim().toLowerCase();
     const levelKey =
-      Object.keys(VERBS).find((k) => data.bloom.toLowerCase().startsWith(k.toLowerCase().slice(0, 5))) ?? "Understand";
+      Object.keys(VERBS).find((k) => bloomRaw === k.toLowerCase()) ??
+      Object.keys(VERBS).find((k) => bloomRaw.includes(k.toLowerCase())) ??
+      Object.keys(VERBS).find((k) => k.toLowerCase().startsWith(bloomRaw.slice(0, 4))) ??
+      "Understand";
     const allowed = VERBS[levelKey]!;
 
     const callAI = async (extra = "") => {
@@ -46,15 +50,14 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
               content:
                 "You rephrase university exam questions. Keep the same topic, technical content, difficulty and marks weight. " +
                 `The question MUST stay at Bloom's Taxonomy level "${levelKey}" (Revised Bloom's Taxonomy, Anderson & Krathwohl 2001). ` +
-                `It MUST start with exactly one action verb from this EXCLUSIVE list for that level: ${allowed.join(", ")}. ` +
-                "You may only use action verbs from that same list anywhere in the question. " +
-                "Do not use any action verb belonging to any other Bloom level. " +
-                "Do not add new sub-parts. Return ONLY the reframed question sentence, no quotes, no commentary." +
+                `It MUST start with exactly one action verb from this list for that level: ${allowed.join(", ")}. ` +
+                "Never use a verb belonging to any other Bloom level. Do not add new sub-parts. " +
+                "Return ONLY the reframed question sentence, no quotes, no commentary." +
                 extra,
             },
             {
               role: "user",
-              content: `Course: ${data.courseName ?? "-"}\nBloom level: ${levelKey}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it using only ${levelKey}-level action verbs from the allowed list.`,
+              content: `Course: ${data.courseName ?? "-"}\nBloom level: ${levelKey}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it starting with a ${levelKey}-level action verb from the allowed list.`,
             },
           ],
         }),
@@ -70,36 +73,45 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
       return ((json.choices?.[0]?.message?.content ?? "") as string).trim().replace(/^["']|["']$/g, "");
     };
 
-    const startsWithAllowed = (s: string) =>
-      allowed.some((v) => s.toLowerCase().replace(/^[^a-z]+/, "").startsWith(v.toLowerCase()));
+    const clean = (s: string) => s.toLowerCase().replace(/^[^a-z]+/, "");
+    const matchedAllowed = (s: string) =>
+      allowed.find((v) => clean(s).startsWith(v.toLowerCase()));
 
-    const containsOtherLevelVerb = (s: string) => {
-      const words = s.toLowerCase().split(/\s+/);
-      for (const [level, verbs] of Object.entries(VERBS)) {
-        if (level === levelKey) continue;
-        for (const v of verbs) {
-          const normalized = v.toLowerCase();
-          if (normalized.length <= 2) continue;
-          if (words.includes(normalized) || s.toLowerCase().includes(` ${normalized}`) || s.toLowerCase().startsWith(normalized)) {
-            return true;
-          }
-        }
-      }
-      return false;
-    };
+    // Verbs that belong to any OTHER Bloom level (and not to this one) are forbidden anywhere.
+    const foreignVerbs = Object.entries(VERBS)
+      .filter(([k]) => k !== levelKey)
+      .flatMap(([, v]) => v)
+      .filter((v) => !allowed.some((a) => a.toLowerCase() === v.toLowerCase()));
+
+    const foreignVerbUsed = (s: string) =>
+      foreignVerbs.find((v) =>
+        new RegExp(`(^|[^a-z])${v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(s|es|ed|ing)?([^a-z]|$)`, "i").test(s),
+      );
 
     let out = await callAI();
-    if (out && !startsWithAllowed(out)) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!out) break;
+      const bad = !matchedAllowed(out) || foreignVerbUsed(out);
+      if (!bad) break;
+      const foreign = foreignVerbUsed(out);
       out = await callAI(
-        ` Your previous attempt did not begin with an allowed ${levelKey} verb. Begin the sentence with exactly one of: ${allowed.join(", ")}.`,
+        ` Your previous attempt was rejected${foreign ? ` because it used the verb "${foreign}", which belongs to a different Bloom level` : " because it did not begin with an allowed verb"}.` +
+          ` The sentence MUST begin with exactly one verb from this ${levelKey} list and MUST NOT contain any action verb from another Bloom level: ${allowed.join(", ")}.`,
       );
     }
-    if (out && containsOtherLevelVerb(out)) {
-      out = await callAI(
-        ` Your previous attempt used an action verb from a different Bloom level. Rewrite the question using ONLY ${levelKey}-level verbs from this list: ${allowed.join(", ")}. Do not use any other action verb.`,
-      );
-    }
+
     if (!out) throw new Error("AI returned an empty reframed question.");
+
+    // Deterministic safety net: force an allowed leading verb if the model still drifted.
+    if (!matchedAllowed(out)) {
+      const firstWord = clean(out).split(/\s+/)[0] ?? "";
+      const rest = clean(out).slice(firstWord.length).trim();
+      const verb = allowed[0]!;
+      out = `${verb.charAt(0).toUpperCase()}${verb.slice(1)} ${rest || clean(out)}`.trim();
+    } else {
+      out = out.charAt(0).toUpperCase() + out.slice(1);
+    }
+
     return { text: out };
   });
 
