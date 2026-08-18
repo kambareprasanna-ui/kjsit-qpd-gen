@@ -30,8 +30,12 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
       Evaluate: ["appraise","assess","conclude","criticize","decide","defend","determine","disprove","estimate","evaluate","judge","justify","measure","prioritize","prove","rate","recommend","support"],
       Create: ["adapt","build","change","combine","compile","compose","construct","create","design","develop","elaborate","formulate","improve","invent","modify","originate","plan","propose","predict"],
     };
+    const bloomRaw = data.bloom.trim().toLowerCase();
     const levelKey =
-      Object.keys(VERBS).find((k) => data.bloom.toLowerCase().startsWith(k.toLowerCase().slice(0, 5))) ?? "Understand";
+      Object.keys(VERBS).find((k) => bloomRaw === k.toLowerCase()) ??
+      Object.keys(VERBS).find((k) => bloomRaw.includes(k.toLowerCase())) ??
+      Object.keys(VERBS).find((k) => k.toLowerCase().startsWith(bloomRaw.slice(0, 4))) ??
+      "Understand";
     const allowed = VERBS[levelKey]!;
 
     const callAI = async (extra = "") => {
