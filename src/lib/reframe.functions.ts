@@ -23,12 +23,21 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
     const VERBS: Record<string, string[]> = {
-      Remember: ["choose","define","find","label","list","match","name","omit","recall","relate","select","show","spell","tell","state","identify"],
-      Understand: ["classify","compare","contrast","demonstrate","explain","extend","illustrate","infer","interpret","outline","rephrase","show","summarize","translate","describe"],
-      Apply: ["apply","build","choose","construct","develop","experiment with","identify","interview","make use of","model","organize","plan","select","solve","utilize","compute","calculate"],
-      Analyze: ["analyze","categorize","classify","compare","contrast","discover","dissect","distinguish","divide","examine","inspect","simplify","survey","test for"],
-      Evaluate: ["appraise","assess","conclude","criticize","decide","defend","determine","disprove","estimate","evaluate","judge","justify","measure","prioritize","prove","rate","recommend","support"],
-      Create: ["adapt","build","change","combine","compile","compose","construct","create","design","develop","elaborate","formulate","improve","invent","modify","originate","plan","propose","predict"],
+      Remember: [
+        "choose","define","find","how","label","list","match","name","omit",
+        "recall","relate","select","show","spell","tell","what","when","where",
+        "which","who","why",
+      ],
+      Understand: [
+        "classify","compare","contrast","demonstrate","explain","extend",
+        "illustrate","infer","interpret","outline","relate","rephrase","show",
+        "summarize","translate",
+      ],
+      Apply: [
+        "apply","build","choose","construct","develop","experiment with",
+        "identify","interview","make use of","model","organize","plan","select",
+        "solve","utilize",
+      ],
     };
     const bloomRaw = data.bloom.trim().toLowerCase();
     const levelKey =
