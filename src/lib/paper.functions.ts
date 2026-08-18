@@ -98,28 +98,42 @@ Return ONLY a JSON object of this exact shape (no markdown, no commentary):
   }
 }`;
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": key,
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-5.5",
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: user },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      if (res.status === 429) throw new Error("AI rate limit reached. Please try again shortly.");
-      if (res.status === 402) throw new Error("AI credits exhausted. Please top up your workspace.");
-      throw new Error(`AI error ${res.status}: ${txt.slice(0, 400)}`);
+    // Try the strongest model first, then fall back to cheaper ones if the
+    // workspace is low on AI credits.
+    const models = ["openai/gpt-5.5", "google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"];
+    let res: Response | null = null;
+    let lastErr = "";
+    for (const model of models) {
+      res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Lovable-API-Key": key,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: user },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (res.ok) break;
+      lastErr = await res.text();
+      if (res.status !== 402 && res.status !== 429) break;
     }
+
+    if (!res || !res.ok) {
+      const status = res?.status ?? 500;
+      if (status === 429) throw new Error("AI rate limit reached. Please try again shortly.");
+      if (status === 402)
+        throw new Error(
+          "The workspace has run out of AI credits, so no new paper can be generated right now. The app owner needs to top up AI credits in Lovable; generation will work again immediately after that.",
+        );
+      throw new Error(`AI error ${status}: ${lastErr.slice(0, 400)}`);
+    }
+
 
     const json: any = await res.json();
     const content: string = json.choices?.[0]?.message?.content ?? "{}";
