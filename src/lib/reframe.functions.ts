@@ -73,16 +73,45 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
       return ((json.choices?.[0]?.message?.content ?? "") as string).trim().replace(/^["']|["']$/g, "");
     };
 
-    const startsWithAllowed = (s: string) =>
-      allowed.some((v) => s.toLowerCase().replace(/^[^a-z]+/, "").startsWith(v.toLowerCase()));
+    const clean = (s: string) => s.toLowerCase().replace(/^[^a-z]+/, "");
+    const matchedAllowed = (s: string) =>
+      allowed.find((v) => clean(s).startsWith(v.toLowerCase()));
+
+    // Verbs that belong to any OTHER Bloom level (and not to this one) are forbidden anywhere.
+    const foreignVerbs = Object.entries(VERBS)
+      .filter(([k]) => k !== levelKey)
+      .flatMap(([, v]) => v)
+      .filter((v) => !allowed.some((a) => a.toLowerCase() === v.toLowerCase()));
+
+    const foreignVerbUsed = (s: string) =>
+      foreignVerbs.find((v) =>
+        new RegExp(`(^|[^a-z])${v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(s|es|ed|ing)?([^a-z]|$)`, "i").test(s),
+      );
 
     let out = await callAI();
-    if (out && !startsWithAllowed(out)) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!out) break;
+      const bad = !matchedAllowed(out) || foreignVerbUsed(out);
+      if (!bad) break;
+      const foreign = foreignVerbUsed(out);
       out = await callAI(
-        ` Your previous attempt did not begin with an allowed ${levelKey} verb. Begin the sentence with one of: ${allowed.join(", ")}.`,
+        ` Your previous attempt was rejected${foreign ? ` because it used the verb "${foreign}", which belongs to a different Bloom level` : " because it did not begin with an allowed verb"}.` +
+          ` The sentence MUST begin with exactly one verb from this ${levelKey} list and MUST NOT contain any action verb from another Bloom level: ${allowed.join(", ")}.`,
       );
     }
+
     if (!out) throw new Error("AI returned an empty reframed question.");
+
+    // Deterministic safety net: force an allowed leading verb if the model still drifted.
+    if (!matchedAllowed(out)) {
+      const firstWord = clean(out).split(/\s+/)[0] ?? "";
+      const rest = clean(out).slice(firstWord.length).trim();
+      const verb = allowed[0]!;
+      out = `${verb.charAt(0).toUpperCase()}${verb.slice(1)} ${rest || clean(out)}`.trim();
+    } else {
+      out = out.charAt(0).toUpperCase() + out.slice(1);
+    }
+
     return { text: out };
   });
 
