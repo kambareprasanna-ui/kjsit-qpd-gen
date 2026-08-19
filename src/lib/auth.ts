@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Role = "designer" | "dqc" | "coord";
+export type Role = "designer" | "dqc" | "coord" | "hod";
 
 export type AppUser = {
   id: string;
@@ -11,11 +11,14 @@ export type AppUser = {
 };
 
 export function roleHome(role: Role): string {
-  return role === "designer" ? "/designer" : role === "dqc" ? "/dqc" : "/coord";
+  if (role === "hod") return "/hod";
+  if (role === "dqc") return "/dqc";
+  if (role === "coord") return "/coord";
+  return "/designer";
 }
 
-// Any @somaiya.edu address may self-register. dqc@ and examcoord@ are the
-// reviewer accounts; every other address becomes a Faculty account.
+// Any @somaiya.edu address may self-register. Faculty accounts start as designer (Paper Designer).
+// HOD can assign or approve faculty to act as DQC Member or Exam Coordinator.
 export const EMAIL_DOMAIN = "@somaiya.edu";
 
 export function isAllowedEmail(email: string): boolean {
@@ -30,12 +33,20 @@ async function loadAppUser(): Promise<AppUser | null> {
     supabase.from("user_roles").select("role").eq("user_id", u.id).maybeSingle(),
     supabase.from("profiles").select("name, email").eq("id", u.id).maybeSingle(),
   ]);
-  if (!role?.role) return null;
+
+  const email = (profile?.email ?? u.email ?? "").toLowerCase();
+  let userRole: Role = (role?.role as Role) || "designer";
+
+  // Check if HOD by email or assigned role
+  if (email.startsWith("hod@") || email.startsWith("hod.") || role?.role === "hod") {
+    userRole = "hod";
+  }
+
   return {
     id: u.id,
     email: profile?.email ?? u.email ?? "",
-    name: profile?.name ?? "",
-    role: role.role as Role,
+    name: profile?.name ?? (userRole === "hod" ? "Head of Department (HOD)" : "Faculty Member"),
+    role: userRole,
   };
 }
 

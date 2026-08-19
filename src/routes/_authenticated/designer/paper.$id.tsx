@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
     ],
   }),
   component: () => (
-    <RoleGuard role="designer">
+    <RoleGuard role={["designer", "hod"]}>
       <PaperEditor />
     </RoleGuard>
   ),
@@ -231,10 +231,24 @@ function PaperEditor() {
             <h1 className="text-2xl font-semibold">
               {meta.courseName} ({meta.courseCode})
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {meta.marks} marks · {meta.className} Sem {meta.semester} · Status:{" "}
-              <span className="font-medium">{paper.status.replace(/_/g, " ")}</span>
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
+              <span>
+                {meta.marks} marks · {meta.className} Sem {meta.semester}
+              </span>
+              <span>·</span>
+              <span className="font-medium capitalize">{paper.status.replace(/_/g, " ")}</span>
+              {meta.subjectType && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-brand/10 text-brand">
+                  NBA:{" "}
+                  {meta.subjectType === "theoretical"
+                    ? "Theoretical (Max L4 Analyze)"
+                    : "Numerical + Theory (Max L6 Create)"}
+                </span>
+              )}
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                100% Unique Sets
+              </span>
+            </div>
             {paper.status === "not_approved" && paper.dqc_note && (
               <div className="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
                 <b>DQC feedback:</b> {paper.dqc_note}

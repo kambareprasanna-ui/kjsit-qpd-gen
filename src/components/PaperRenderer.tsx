@@ -1,6 +1,12 @@
 import type React from "react";
 import type { GeneratedSet } from "@/lib/paper.functions";
-import { getPattern, paperInstruction, paperTime, type PatternSlot } from "@/lib/paper-pattern";
+import {
+  getPattern,
+  paperInstruction,
+  paperTime,
+  type PatternSlot,
+  type SubjectType,
+} from "@/lib/paper-pattern";
 import logo from "@/assets/svv-logo.png.asset.json";
 
 export type PaperMeta = {
@@ -15,6 +21,8 @@ export type PaperMeta = {
   department?: string;
   testNumber?: 1 | 2;
   courseOutcomes?: Record<string, string>;
+  subjectType?: SubjectType;
+  analysis?: any;
 };
 
 export type DiagramMap = Record<string, string>; // question key -> image data url

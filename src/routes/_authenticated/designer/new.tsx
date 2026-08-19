@@ -1,11 +1,32 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Upload } from "lucide-react";
+import {
+  Loader2,
+  Upload,
+  BarChart3,
+  CheckCircle2,
+  ShieldCheck,
+  Clock,
+  Sparkles,
+  BookOpen,
+  HelpCircle,
+  Layers,
+  AlertTriangle,
+} from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { extractText } from "@/lib/parse-file";
-import { generatePaperFn, extractCOsFromSyllabusText } from "@/lib/paper.functions";
+import {
+  generatePaperFn,
+  extractCOsFromSyllabusText,
+  extractModulesWithHoursFromSyllabus,
+  parseQuestionBankQuestions,
+  computeQBAnalysis,
+  type QBAnalysis,
+} from "@/lib/paper.functions";
+import type { SubjectType, Bloom } from "@/lib/paper-pattern";
+import { BLOOM_DETAILS } from "@/lib/paper-pattern";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/lib/auth";
 
@@ -40,31 +61,38 @@ function NewPaper() {
     semester: "III",
     marks: 20 as 20 | 30,
     testNumber: 1 as 1 | 2,
+    subjectType: "analytical_numerical" as SubjectType,
   });
   const [syllabus, setSyllabus] = useState<File | null>(null);
   const [qb, setQb] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<QBAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
 
-  const detectCOs = (text: string): string[] => {
-    const found = new Set<string>();
-    const add = (n: string) => found.add(`CO${n}`);
-    // "CO1", "CO 1", "C.O.1", "CO-1" anywhere
-    for (const m of text.matchAll(/\bC\.?\s?O\.?\s?-?\s?([1-6])\b/gi)) add(m[1]);
-    // "Course Outcome 1" / "Outcome 1"
-    for (const m of text.matchAll(/\b(?:course\s+)?outcome\s*[-:.]?\s*([1-6])\b/gi)) add(m[1]);
-    // Numbered list inside a "Course Outcomes" section
-    const secIdx = text.search(/course\s+outcome/i);
-    if (secIdx >= 0 && found.size < 3) {
-      const section = text.slice(secIdx, secIdx + 2500);
-      for (const m of section.matchAll(/(?:^|\n|\s)([1-6])\s*[).:]\s*[A-Za-z]/g)) add(m[1]);
+  const handleAnalyzeQB = async () => {
+    if (!syllabus || !qb) {
+      setError("Please select both Syllabus and Question Bank files first.");
+      return;
     }
-    return Array.from(found).sort();
+    setError(null);
+    setAnalyzing(true);
+    try {
+      const syllText = await extractText(syllabus);
+      const qbText = await extractText(qb);
+      const parsedQB = parseQuestionBankQuestions(qbText);
+      const result = computeQBAnalysis(parsedQB, syllText, form.subjectType, form.marks);
+      setAnalysis(result);
+    } catch (err: any) {
+      setError("Analysis failed: " + (err?.message || String(err)));
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const runGenerate = async (syllText: string, qbText: string) => {
-    setProgress("Generating 3 question paper sets with AI…");
+    setProgress("Generating 3 mutually unique question paper sets with AI…");
     const result = await generate({
       data: {
         syllabus: syllText,
@@ -72,6 +100,7 @@ function NewPaper() {
         marks: form.marks,
         courseName: form.courseName,
         courseCode: form.courseCode,
+        subjectType: form.subjectType,
       },
     });
     setProgress("Saving paper…");
@@ -80,7 +109,6 @@ function NewPaper() {
     const directRegexCOs = extractCOsFromSyllabusText(syllText);
     const returnedCOs = result.courseOutcomes ?? {};
 
-    // Standard fallback COs only if both direct extraction and AI extraction missed the specific CO
     const fallbackCOs: Record<string, string> = {
       CO1: `Understand fundamental concepts, architectures, and principles of ${form.courseName || "the course"}.`,
       CO2: `Apply analytical methods and computational techniques in ${form.courseName || "the course"}.`,
@@ -100,7 +128,12 @@ function NewPaper() {
       .from("papers")
       .insert({
         status: "draft",
-        meta: { ...form, courseOutcomes: finalCOs },
+        meta: {
+          ...form,
+          courseOutcomes: finalCOs,
+          subjectType: form.subjectType,
+          analysis: result.analysis || analysis,
+        },
         sets: result.sets,
         created_by_role: "designer",
         created_by_email: user?.email ?? null,
@@ -148,16 +181,96 @@ function NewPaper() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-16">
       <AppHeader />
-      <div className="max-w-3xl mx-auto p-6">
-        <h1 className="text-2xl font-semibold mb-1">Generate New Question Paper</h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          Upload syllabus + question bank. AI will draft 3 sets (Easy / Medium / Hard) using only
-          bank questions.
-        </p>
-        <form onSubmit={submit} className="space-y-5 bg-card border border-border rounded-lg p-6">
-          <div className="grid grid-cols-2 gap-4">
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-foreground">Generate New Question Paper</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Generates 3 <strong>100% unique, non-repeating</strong> question paper sets (Easy,
+            Medium, Hard) strictly mapped to NBA Revised Bloom&apos;s Taxonomy and Module Hourly
+            Weightages.
+          </p>
+        </div>
+
+        <form
+          onSubmit={submit}
+          className="space-y-6 bg-card border border-border rounded-xl p-6 shadow-sm"
+        >
+          {/* Section 1: Subject Type & NBA Criteria */}
+          <div>
+            <label className="text-sm font-semibold block mb-2 text-foreground">
+              Subject Type (NBA Criteria Mapping)
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, subjectType: "theoretical" })}
+                className={`p-4 rounded-lg border text-left transition cursor-pointer flex flex-col justify-between ${
+                  form.subjectType === "theoretical"
+                    ? "border-brand bg-brand/5 ring-1 ring-brand"
+                    : "border-border hover:bg-accent/40 text-muted-foreground"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+                    <BookOpen className="w-4 h-4 text-brand" /> Theoretical Subject
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                    Concepts, classifications &amp; theory. Bloom&apos;s level capped at{" "}
+                    <strong>Level 4 (Analyze)</strong> as per NBA guidelines.
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center gap-1.5 text-[11px] text-brand font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Levels: BL1 (Remember) to BL4 (Analyze)
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, subjectType: "analytical_numerical" })}
+                className={`p-4 rounded-lg border text-left transition cursor-pointer flex flex-col justify-between ${
+                  form.subjectType === "analytical_numerical"
+                    ? "border-brand bg-brand/5 ring-1 ring-brand"
+                    : "border-border hover:bg-accent/40 text-muted-foreground"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+                    <Sparkles className="w-4 h-4 text-brand" /> Numerical + Theoretical / Analytical
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                    Problem-solving, algorithmic design &amp; synthesis. Full spectrum up to{" "}
+                    <strong>Level 6 (Create / Design)</strong>.
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center gap-1.5 text-[11px] text-brand font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Levels: BL1 (Remember) to BL6 (Create)
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Section 2: Examination Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2 border-t border-border">
+            <Field label="Course Name">
+              <input
+                value={form.courseName}
+                onChange={(e) => setForm({ ...form, courseName: e.target.value })}
+                className={input}
+                placeholder="e.g., Operating Systems"
+                required
+              />
+            </Field>
+            <Field label="Course Code">
+              <input
+                value={form.courseCode}
+                onChange={(e) => setForm({ ...form, courseCode: e.target.value })}
+                className={input}
+                placeholder="e.g., AI301"
+                required
+              />
+            </Field>
             <Field label="Exam Name">
               <input
                 value={form.examName}
@@ -183,11 +296,11 @@ function NewPaper() {
                 }}
                 className={input}
               >
-                <option value={20}>20</option>
-                <option value={30}>30</option>
+                <option value={20}>20 Marks (1 Hour)</option>
+                <option value={30}>30 Marks (1.5 Hours)</option>
               </select>
             </Field>
-            <Field label="Test">
+            <Field label="Test Number">
               <select
                 value={form.testNumber}
                 onChange={(e) => {
@@ -203,22 +316,6 @@ function NewPaper() {
                 <option value={1}>Test 1 (CO1–CO3)</option>
                 <option value={2}>Test 2 (CO4–CO6)</option>
               </select>
-            </Field>
-            <Field label="Course Name">
-              <input
-                value={form.courseName}
-                onChange={(e) => setForm({ ...form, courseName: e.target.value })}
-                className={input}
-                placeholder="Operating Systems"
-              />
-            </Field>
-            <Field label="Course Code">
-              <input
-                value={form.courseCode}
-                onChange={(e) => setForm({ ...form, courseCode: e.target.value })}
-                className={input}
-                placeholder="AI301"
-              />
             </Field>
             <Field label="Class / Year">
               <select
@@ -253,24 +350,181 @@ function NewPaper() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FileField
-              label="Syllabus PDF"
-              file={syllabus}
-              onChange={setSyllabus}
-              accept=".pdf,.docx,.txt"
-            />
-            <FileField
-              label="Question Bank (PDF/DOCX/TXT)"
-              file={qb}
-              onChange={setQb}
-              accept=".pdf,.docx,.txt"
-            />
+          {/* Section 3: File Uploads */}
+          <div className="pt-2 border-t border-border space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FileField
+                label="Syllabus PDF / DOCX (For Module Hours & COs)"
+                file={syllabus}
+                onChange={(f) => {
+                  setSyllabus(f);
+                  setAnalysis(null);
+                }}
+                accept=".pdf,.docx,.txt"
+              />
+              <FileField
+                label="Question Bank (PDF/DOCX/TXT)"
+                file={qb}
+                onChange={(f) => {
+                  setQb(f);
+                  setAnalysis(null);
+                }}
+                accept=".pdf,.docx,.txt"
+              />
+            </div>
+
+            {/* Pre-generation Analysis trigger */}
+            {syllabus && qb && !analysis && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAnalyzeQB}
+                  disabled={analyzing}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 border border-brand/40 bg-brand/5 text-brand rounded-md text-xs font-medium hover:bg-brand/10 cursor-pointer transition"
+                >
+                  {analyzing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <BarChart3 className="w-3.5 h-3.5" />
+                  )}
+                  {analyzing
+                    ? "Analyzing Question Bank…"
+                    : "Run Question Bank Analysis & Weightage Check"}
+                </button>
+              </div>
+            )}
           </div>
 
+          {/* Question Bank Analysis Panel */}
+          {analysis && (
+            <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2 font-semibold text-sm text-foreground">
+                  <BarChart3 className="w-4 h-4 text-brand" />
+                  <span>Question Bank &amp; Hourly Weightage Analysis</span>
+                </div>
+                <span className="text-xs bg-brand/10 text-brand px-2.5 py-0.5 rounded-full font-medium">
+                  {analysis.totalQuestions} Questions Parsed
+                </span>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-2.5 bg-background rounded-lg border border-border">
+                  <div className="text-muted-foreground text-[11px]">Uniqueness Guarantee</div>
+                  <div className="font-semibold text-emerald-700 flex items-center gap-1 mt-0.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    100% Unique Sets
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    Needs {analysis.uniquenessGuarantee.totalSlotsRequired} qns across 3 sets
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-background rounded-lg border border-border">
+                  <div className="text-muted-foreground text-[11px]">NBA Bloom&apos;s Level</div>
+                  <div
+                    className={`font-semibold mt-0.5 ${analysis.nbaCompliance.isCompliant ? "text-emerald-700" : "text-amber-700"}`}
+                  >
+                    Max: {analysis.nbaCompliance.actualMaxBloom}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    Allowed: {analysis.nbaCompliance.maxBloomAllowed}
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-background rounded-lg border border-border">
+                  <div className="text-muted-foreground text-[11px]">LOTS vs HOTS</div>
+                  <div className="font-semibold text-foreground mt-0.5">
+                    {analysis.lotsCount} LOTS / {analysis.hotsCount} HOTS
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    LOTS (BL1-2) | HOTS (BL3-6)
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-background rounded-lg border border-border">
+                  <div className="text-muted-foreground text-[11px]">Subject Type</div>
+                  <div className="font-semibold text-brand mt-0.5 capitalize">
+                    {form.subjectType.replace("_", " + ")}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    NBA syllabus profile
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloom Level Distribution */}
+              <div>
+                <div className="text-xs font-semibold text-foreground mb-2 flex items-center justify-between">
+                  <span>Bloom&apos;s Taxonomy Distribution in Question Bank:</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">
+                    Easy uses BL1-BL2; Medium uses BL2-BL4; Hard uses BL4-BL6
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {(Object.keys(BLOOM_DETAILS) as Bloom[]).map((bloomKey) => {
+                    const count = analysis.bloomDistribution[bloomKey] || 0;
+                    const info = BLOOM_DETAILS[bloomKey];
+                    const isAllowed = form.subjectType !== "theoretical" || info.level <= 4;
+                    return (
+                      <div
+                        key={bloomKey}
+                        className={`p-2 rounded border text-center ${
+                          !isAllowed && count > 0
+                            ? "bg-amber-50/60 border-amber-300 text-amber-900"
+                            : "bg-background border-border text-foreground"
+                        }`}
+                      >
+                        <div className="text-[10px] text-muted-foreground font-medium">
+                          {info.code} ({bloomKey})
+                        </div>
+                        <div className="text-sm font-bold mt-0.5">{count}</div>
+                        <div className="text-[9px] text-muted-foreground">{info.category}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Module Hourly Weightage Table */}
+              <div>
+                <div className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-brand" />
+                  <span>Module Hourly Weightages vs. Question Bank Allocation:</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left border-collapse border border-border">
+                    <thead className="bg-muted text-muted-foreground">
+                      <tr>
+                        <th className="p-2 border border-border">Module</th>
+                        <th className="p-2 border border-border">Teaching Hours</th>
+                        <th className="p-2 border border-border">Hourly Weightage %</th>
+                        <th className="p-2 border border-border">Questions in Bank</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analysis.modules.map((m) => (
+                        <tr key={m.module} className="border-b border-border bg-background">
+                          <td className="p-2 border border-border font-medium">{m.module}</td>
+                          <td className="p-2 border border-border">{m.hours} Hrs</td>
+                          <td className="p-2 border border-border">{m.weightagePercent}%</td>
+                          <td className="p-2 border border-border font-semibold">
+                            {m.questionCount}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {error && (
-            <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
-              {error}
+            <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
           {loading && (
@@ -282,9 +536,17 @@ function NewPaper() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-brand text-brand-foreground rounded-md font-medium hover:bg-brand/90 transition disabled:opacity-60"
+            className="w-full py-3 bg-brand text-brand-foreground rounded-lg font-medium hover:bg-brand/90 transition disabled:opacity-60 cursor-pointer text-sm shadow flex items-center justify-center gap-2"
           >
-            {loading ? "Generating…" : "Generate 3 Sets"}
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Generating 3 Unique Sets…
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" /> Generate 3 Unique Sets (Easy, Medium, Hard)
+              </>
+            )}
           </button>
         </form>
       </div>
@@ -298,7 +560,7 @@ const input =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-sm font-medium block mb-1.5">{label}</label>
+      <label className="text-xs font-semibold block mb-1.5 text-foreground">{label}</label>
       {children}
     </div>
   );
@@ -317,10 +579,12 @@ function FileField({
 }) {
   return (
     <div>
-      <label className="text-sm font-medium block mb-1.5">{label}</label>
-      <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-border rounded-md cursor-pointer hover:border-brand transition text-sm">
-        <Upload className="w-4 h-4" />
-        <span className="truncate">{file ? file.name : "Choose file"}</span>
+      <label className="text-xs font-semibold block mb-1.5 text-foreground">{label}</label>
+      <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-border rounded-lg cursor-pointer hover:border-brand hover:bg-accent/30 transition text-sm bg-background">
+        <Upload className="w-4 h-4 text-brand shrink-0" />
+        <span className="truncate flex-1 text-xs text-foreground">
+          {file ? file.name : "Choose file (PDF / DOCX / TXT)"}
+        </span>
         <input
           type="file"
           accept={accept}
