@@ -28,13 +28,33 @@ function loadPuter(): Promise<NonNullable<Window["puter"]>> {
 }
 
 function parsePuterResponse(response: unknown): Record<string, unknown> {
-  const message = (response as { message?: unknown })?.message;
-  const content = (message as { content?: unknown })?.content;
-  const text = typeof response === "string" ? response : String(content ?? message ?? response ?? "");
-  const cleaned = text.replace(/^```json\\s*/i, "").replace(/\\s*```$/i, "").trim();
-  const match = cleaned.match(/\\{[\\s\\S]*\\}/);
-  if (!match) throw new Error("Puter returned an invalid question-paper response.");
-  return JSON.parse(match[0]) as Record<string, unknown>;
+  const collectText = (value: unknown): string => {
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) return value.map(collectText).filter(Boolean).join("\n");
+    if (value && typeof value === "object") {
+      const item = value as Record<string, unknown>;
+      for (const key of ["content", "text", "message", "response", "output"]) {
+        const text = collectText(item[key]);
+        if (text) return text;
+      }
+    }
+    return "";
+  };
+
+  const text = collectText(response).trim();
+  const fenced = text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/i)?.[1];
+  const candidate = (fenced ?? text).trim();
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+  if (start < 0 || end <= start) {
+    throw new Error("Puter returned an invalid question-paper response. Please try again.");
+  }
+
+  try {
+    return JSON.parse(candidate.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    throw new Error("Puter returned malformed question-paper JSON. Please try again.");
+  }
 }
 import { useServerFn } from "@tanstack/react-start";
 import {
