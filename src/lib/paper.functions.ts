@@ -22,7 +22,6 @@ const Input = z.object({
     .default("analytical_numerical")
     .optional(),
   moduleHours: z.record(z.string(), z.number()).optional(),
-  generatedResponse: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type GeneratedQuestion = {
@@ -633,9 +632,8 @@ TASK:
 2. Select distinct questions for Easy, Medium, and Hard sets.
 Ensure zero duplication between Easy, Medium, and Hard sets.`;
 
-    let rawParsed: any = data.generatedResponse ?? {};
-    if (!data.generatedResponse) {
-      try {
+    let rawParsed: any = {};
+    try {
       const response = await generateContentWithRetry({
         preferredModel: "gemini-3.7-flash",
         contents: prompt,
@@ -695,9 +693,8 @@ Ensure zero duplication between Easy, Medium, and Hard sets.`;
         const match = content.match(/\{[\s\S]*\}/);
         rawParsed = match ? JSON.parse(match[0]) : {};
       }
-      } catch (e) {
-        console.warn("AI generation fallback to deterministic QB allocation:", e);
-      }
+    } catch (e) {
+      console.warn("AI generation fallback to deterministic QB allocation:", e);
     }
 
     // Extract raw sets from AI response
