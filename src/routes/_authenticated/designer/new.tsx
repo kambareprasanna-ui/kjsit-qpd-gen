@@ -28,13 +28,37 @@ function loadPuter(): Promise<NonNullable<Window["puter"]>> {
 }
 
 function parsePuterResponse(response: unknown): Record<string, unknown> {
-  const message = (response as { message?: unknown })?.message;
-  const content = (message as { content?: unknown })?.content;
-  const text = typeof response === "string" ? response : String(content ?? message ?? response ?? "");
-  const cleaned = text.replace(/^```json\\s*/i, "").replace(/\\s*```$/i, "").trim();
-  const match = cleaned.match(/\\{[\\s\\S]*\\}/);
-  if (!match) throw new Error("Puter returned an invalid question-paper response.");
-  return JSON.parse(match[0]) as Record<string, unknown>;
+  const collectText = (value: unknown): string => {
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) return value.map(collectText).filter(Boolean).join("\n");
+    if (value && typeof value === "object") {
+      const item = value as Record<string, unknown>;
+      const preferred = ["content", "text", "message", "response", "output"]
+        .map((key) => collectText(item[key]))
+        .filter(Boolean);
+      if (preferred.length) return preferred.join("\n");
+      return Object.values(item).map(collectText).filter(Boolean).join("\n");
+    }
+    return "";
+  };
+
+  const text = collectText(response).trim();
+  const cleaned = text.replace(/```(?:json)?\\s*/gi, "").replace(/\\s*```/g, "").trim();
+  const candidates = [cleaned];
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start >= 0 && end > start) candidates.push(cleaned.slice(start, end + 1));
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+    } catch {
+      // Try the next extracted candidate.
+    }
+  }
+
+  throw new Error("Puter returned invalid question-paper JSON. Please try again.");
 }
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -132,7 +156,7 @@ function NewPaper() {
     const puter = await loadPuter();
     const prompt = `Return ONLY valid JSON for an academic question paper generator. Create exactly three sets named Easy, Medium, and Hard with mutually unique questions selected exclusively from the question bank. Include courseOutcomes with CO1 through CO6 when available. Each question needs key, text, marks, bloom, co, module, and needsDiagram. Course: ${form.courseName} (${form.courseCode}), marks: ${form.marks}, subject type: ${form.subjectType}. Syllabus:\n${syllText.slice(0, 18000)}\nQuestion bank:\n${qbText.slice(0, 50000)}`;
     setProgress("Generating 3 mutually unique question paper sets with Puter AI…");
-    const response = await puter.ai.chat(prompt, { model: "google/gemini-3.1-pro-preview" });
+    const response = await puter.ai.chat(prompt, { model: "qwen/qwen3.8-max" });
     const generatedResponse = parsePuterResponse(response);
     setProgress("Validating and saving paper…");
     const result = await generate({
