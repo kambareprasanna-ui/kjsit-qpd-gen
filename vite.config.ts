@@ -16,6 +16,18 @@ const supabasePublishableKey =
 
 export default defineConfig({
   vite: {
+    // Keep TanStack's split ESM entrypoints out of Vite's optimizer. The
+    // optimizer can retain stale hashed files for these conditional exports,
+    // which makes the default client entry fail to load in preview.
+    optimizeDeps: {
+      exclude: [
+        "@tanstack/router-core",
+        "@tanstack/router-core/isServer",
+        "@tanstack/router-core/ssr/client",
+        "@tanstack/history",
+        "seroval",
+      ],
+    },
     // Vite config runs before import.meta.env is available. Resolve the
     // connected browser-safe Supabase values from the project env file here.
     define: {
