@@ -1,5 +1,41 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+
+declare global {
+  interface Window {
+    puter?: {
+      ai: {
+        chat: (prompt: string, options: { model: string }) => Promise<unknown>;
+      };
+    };
+  }
+}
+
+function loadPuter(): Promise<NonNullable<Window["puter"]>> {
+  if (window.puter) return Promise.resolve(window.puter);
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://js.puter.com/v2/"]');
+    const script = existing ?? document.createElement("script");
+    const onLoad = () => (window.puter ? resolve(window.puter) : reject(new Error("Puter AI failed to initialize.")));
+    script.addEventListener("load", onLoad, { once: true });
+    script.addEventListener("error", () => reject(new Error("Could not load Puter AI.")), { once: true });
+    if (!existing) {
+      script.src = "https://js.puter.com/v2/";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  });
+}
+
+function parsePuterResponse(response: unknown): Record<string, unknown> {
+  const message = (response as { message?: unknown })?.message;
+  const content = (message as { content?: unknown })?.content;
+  const text = typeof response === "string" ? response : String(content ?? message ?? response ?? "");
+  const cleaned = text.replace(/^```json\\s*/i, "").replace(/\\s*```$/i, "").trim();
+  const match = cleaned.match(/\\{[\\s\\S]*\\}/);
+  if (!match) throw new Error("Puter returned an invalid question-paper response.");
+  return JSON.parse(match[0]) as Record<string, unknown>;
+}
 import { useServerFn } from "@tanstack/react-start";
 import {
   Loader2,
@@ -92,7 +128,13 @@ function NewPaper() {
   };
 
   const runGenerate = async (syllText: string, qbText: string) => {
-    setProgress("Generating 3 mutually unique question paper sets with AI…");
+    setProgress("Connecting to Puter AI…");
+    const puter = await loadPuter();
+    const prompt = `Return ONLY valid JSON for an academic question paper generator. Create exactly three sets named Easy, Medium, and Hard with mutually unique questions selected exclusively from the question bank. Include courseOutcomes with CO1 through CO6 when available. Each question needs key, text, marks, bloom, co, module, and needsDiagram. Course: ${form.courseName} (${form.courseCode}), marks: ${form.marks}, subject type: ${form.subjectType}. Syllabus:\n${syllText.slice(0, 18000)}\nQuestion bank:\n${qbText.slice(0, 50000)}`;
+    setProgress("Generating 3 mutually unique question paper sets with Puter AI…");
+    const response = await puter.ai.chat(prompt, { model: "google/gemini-3.1-pro-preview" });
+    const generatedResponse = parsePuterResponse(response);
+    setProgress("Validating and saving paper…");
     const result = await generate({
       data: {
         syllabus: syllText,
@@ -101,6 +143,7 @@ function NewPaper() {
         courseName: form.courseName,
         courseCode: form.courseCode,
         subjectType: form.subjectType,
+        generatedResponse,
       },
     });
     setProgress("Saving paper…");
