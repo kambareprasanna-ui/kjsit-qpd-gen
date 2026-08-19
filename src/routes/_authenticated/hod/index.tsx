@@ -139,8 +139,7 @@ function HodDashboard() {
               Faculty &amp; Role Management
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Designate and approve which faculty members serve as DQC Reviewers or Exam
-              Coordinators.
+              Designate and approve which faculty members serve as DQC Reviewers or Exam Coordinators.
             </p>
           </div>
 
@@ -234,8 +233,7 @@ function HodDashboard() {
               <span>Pending Role Approval Requests ({data.requests.length})</span>
             </div>
             <p className="text-xs text-amber-800/80 mb-4">
-              The following faculty members have requested appointment as DQC Member or Exam
-              Coordinator.
+              The following faculty members have requested appointment as DQC Member or Exam Coordinator.
             </p>
 
             <div className="grid gap-3">
@@ -246,12 +244,8 @@ function HodDashboard() {
                 >
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-foreground text-sm">
-                        {req.facultyName}
-                      </span>
-                      <span className="text-xs text-muted-foreground font-mono">
-                        ({req.facultyEmail})
-                      </span>
+                      <span className="font-semibold text-foreground text-sm">{req.facultyName}</span>
+                      <span className="text-xs text-muted-foreground font-mono">({req.facultyEmail})</span>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
                         Requested: {req.requestedRole === "dqc" ? "DQC Member" : "Exam Coordinator"}
                       </span>
@@ -388,8 +382,7 @@ function HodDashboard() {
                                 </span>
                               ) : member.role === "dqc" ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-900 border border-emerald-200">
-                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> DQC
-                                  Member
+                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> DQC Member
                                 </span>
                               ) : member.role === "coord" ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-200">
@@ -416,9 +409,7 @@ function HodDashboard() {
                               ) : (
                                 <div className="inline-flex items-center gap-1.5 justify-end">
                                   <button
-                                    onClick={() =>
-                                      handleAssignRole(member.id, member.email, "designer")
-                                    }
+                                    onClick={() => handleAssignRole(member.id, member.email, "designer")}
                                     disabled={member.role === "designer" || isUpdating}
                                     title="Set as standard Faculty / Paper Designer"
                                     className={`px-2.5 py-1 text-xs rounded border transition cursor-pointer ${
@@ -444,9 +435,7 @@ function HodDashboard() {
                                   </button>
 
                                   <button
-                                    onClick={() =>
-                                      handleAssignRole(member.id, member.email, "coord")
-                                    }
+                                    onClick={() => handleAssignRole(member.id, member.email, "coord")}
                                     disabled={member.role === "coord" || isUpdating}
                                     title="Approve / Designate as Exam Coordinator"
                                     className={`px-2.5 py-1 text-xs rounded border font-medium transition cursor-pointer ${
@@ -475,12 +464,9 @@ function HodDashboard() {
         {activeTab === "papers" && (
           <div className="mt-6 space-y-4">
             <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-              <h3 className="font-semibold text-foreground text-base">
-                Departmental Question Papers
-              </h3>
+              <h3 className="font-semibold text-foreground text-base">Departmental Question Papers</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Full department oversight of question paper drafts, DQC review cycles, and finalized
-                approved papers.
+                Full department oversight of question paper drafts, DQC review cycles, and finalized approved papers.
               </p>
             </div>
 

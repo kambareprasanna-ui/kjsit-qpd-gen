@@ -2,7 +2,13 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { useUser, type Role, roleHome } from "@/lib/auth";
 
-export function RoleGuard({ role, children }: { role: Role | Role[]; children: ReactNode }) {
+export function RoleGuard({
+  role,
+  children,
+}: {
+  role: Role | Role[];
+  children: ReactNode;
+}) {
   const user = useUser();
   const navigate = useNavigate();
 

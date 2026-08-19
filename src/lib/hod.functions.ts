@@ -59,22 +59,17 @@ export const getHodDashboardFn = createServerFn({ method: "GET" })
     }
 
     // 1. Fetch all profiles, user_roles, papers, and notifications
-    const [{ data: allProfiles }, { data: allRoles }, { data: allPapers }, { data: allNotifs }] =
-      await Promise.all([
-        supabaseAdmin
-          .from("profiles")
-          .select("id, email, name, created_at")
-          .order("created_at", { ascending: false }),
-        supabaseAdmin.from("user_roles").select("user_id, role"),
-        supabaseAdmin
-          .from("papers")
-          .select("id, status, meta, created_by_email, created_at, dqc_note")
-          .order("created_at", { ascending: false }),
-        supabaseAdmin
-          .from("notifications")
-          .select("id, message, read, recipient_email, created_at")
-          .order("created_at", { ascending: false }),
-      ]);
+    const [
+      { data: allProfiles },
+      { data: allRoles },
+      { data: allPapers },
+      { data: allNotifs },
+    ] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id, email, name, created_at").order("created_at", { ascending: false }),
+      supabaseAdmin.from("user_roles").select("user_id, role"),
+      supabaseAdmin.from("papers").select("id, status, meta, created_by_email, created_at, dqc_note").order("created_at", { ascending: false }),
+      supabaseAdmin.from("notifications").select("id, message, read, recipient_email, created_at").order("created_at", { ascending: false }),
+    ]);
 
     const roleMap = new Map<string, string>();
     (allRoles || []).forEach((r) => {
@@ -247,10 +242,7 @@ export const requestRoleElevationFn = createServerFn({ method: "POST" })
 
     const roleLabel = data.requestedRole === "dqc" ? "DQC Member" : "Exam Coordinator";
     const facultyName = profile.name || profile.email;
-    const reasonText = (data.reason || "Faculty submitted application for role.").replace(
-      /[|\n]/g,
-      " ",
-    );
+    const reasonText = (data.reason || "Faculty submitted application for role.").replace(/[|\n]/g, " ");
 
     // Send formatted role request to HOD
     await supabaseAdmin.from("notifications").insert({
@@ -262,32 +254,6 @@ export const requestRoleElevationFn = createServerFn({ method: "POST" })
       success: true,
       message: `Request submitted to HOD to act as ${roleLabel}.`,
     };
-  });
-
-const RegisterRoleRequestInput = z.object({
-  userId: z.string().min(1),
-  email: z.string().email(),
-  name: z.string().optional(),
-  requestedRole: z.enum(["dqc", "coord"]),
-  reason: z.string().optional(),
-});
-
-export const registerRoleRequestFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) => RegisterRoleRequestInput.parse(d))
-  .handler(async ({ data }) => {
-    const reasonText = (data.reason || "Requested during account registration.").replace(
-      /[|\n]/g,
-      " ",
-    );
-    const facultyName = data.name || data.email;
-
-    // Send formatted role request to HOD
-    await supabaseAdmin.from("notifications").insert({
-      recipient_email: "hod@somaiya.edu",
-      message: `[ROLE_REQUEST] ${data.userId}|${data.email}|${facultyName}|${data.requestedRole}|${reasonText}`,
-    });
-
-    return { success: true };
   });
 
 const DismissRoleRequestInput = z.object({
