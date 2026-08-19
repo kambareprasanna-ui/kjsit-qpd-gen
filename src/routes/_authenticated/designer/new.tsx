@@ -33,28 +33,32 @@ function parsePuterResponse(response: unknown): Record<string, unknown> {
     if (Array.isArray(value)) return value.map(collectText).filter(Boolean).join("\n");
     if (value && typeof value === "object") {
       const item = value as Record<string, unknown>;
-      for (const key of ["content", "text", "message", "response", "output"]) {
-        const text = collectText(item[key]);
-        if (text) return text;
-      }
+      const preferred = ["content", "text", "message", "response", "output"]
+        .map((key) => collectText(item[key]))
+        .filter(Boolean);
+      if (preferred.length) return preferred.join("\n");
+      return Object.values(item).map(collectText).filter(Boolean).join("\n");
     }
     return "";
   };
 
   const text = collectText(response).trim();
-  const fenced = text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/i)?.[1];
-  const candidate = (fenced ?? text).trim();
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-  if (start < 0 || end <= start) {
-    throw new Error("Puter returned an invalid question-paper response. Please try again.");
+  const cleaned = text.replace(/```(?:json)?\\s*/gi, "").replace(/\\s*```/g, "").trim();
+  const candidates = [cleaned];
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start >= 0 && end > start) candidates.push(cleaned.slice(start, end + 1));
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+    } catch {
+      // Try the next extracted candidate.
+    }
   }
 
-  try {
-    return JSON.parse(candidate.slice(start, end + 1)) as Record<string, unknown>;
-  } catch {
-    throw new Error("Puter returned malformed question-paper JSON. Please try again.");
-  }
+  throw new Error("Puter returned invalid question-paper JSON. Please try again.");
 }
 import { useServerFn } from "@tanstack/react-start";
 import {
