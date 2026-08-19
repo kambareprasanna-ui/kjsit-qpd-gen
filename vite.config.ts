@@ -7,6 +7,11 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  vite: {
+    // The project uses NEXT_PUBLIC_* names for browser-safe Supabase configuration.
+    // Expose those names to Vite so the client can initialize Supabase in preview.
+    envPrefix: ["VITE_", "NEXT_PUBLIC_"],
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
