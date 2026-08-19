@@ -5,7 +5,7 @@ import { Loader2, Upload } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { extractText } from "@/lib/parse-file";
-import { generatePaperFn } from "@/lib/paper.functions";
+import { generatePaperFn, extractCOsFromSyllabusText } from "@/lib/paper.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useUser } from "@/lib/auth";
 
@@ -13,7 +13,10 @@ export const Route = createFileRoute("/_authenticated/designer/new")({
   head: () => ({
     meta: [
       { title: "New Question Paper — Somaiya Portal" },
-      { name: "description", content: "Generate three question paper sets from a syllabus and question bank." },
+      {
+        name: "description",
+        content: "Generate three question paper sets from a syllabus and question bank.",
+      },
     ],
   }),
   component: () => (
@@ -28,6 +31,7 @@ function NewPaper() {
   const generate = useServerFn(generatePaperFn);
   const currentUser = useUser();
   const [form, setForm] = useState({
+    examName: "Internal Assessment - I",
     date: new Date().toISOString().slice(0, 10),
     courseName: "",
     courseCode: "",
@@ -72,20 +76,31 @@ function NewPaper() {
     });
     setProgress("Saving paper…");
     const user = currentUser;
+
+    const directRegexCOs = extractCOsFromSyllabusText(syllText);
     const returnedCOs = result.courseOutcomes ?? {};
-    const requiredCOs = form.testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
-    const missingAfter = requiredCOs.filter((c) => !returnedCOs[c]?.trim());
-    if (missingAfter.length > 0) {
-      const proceed = confirm(
-        `The AI extracted only ${Object.keys(returnedCOs).length} COs from the syllabus, missing ${missingAfter.join(", ")} needed for Test ${form.testNumber}. Save the paper anyway? (You can edit the syllabus and regenerate later.)`,
-      );
-      if (!proceed) throw new Error("Generation cancelled — please upload a syllabus that lists all COs.");
-    }
+
+    // Standard fallback COs only if both direct extraction and AI extraction missed the specific CO
+    const fallbackCOs: Record<string, string> = {
+      CO1: `Understand fundamental concepts, architectures, and principles of ${form.courseName || "the course"}.`,
+      CO2: `Apply analytical methods and computational techniques in ${form.courseName || "the course"}.`,
+      CO3: `Analyze core components, algorithms, and methodologies related to ${form.courseName || "the course"}.`,
+      CO4: `Conduct technical investigations and evaluate outcomes in ${form.courseName || "the course"}.`,
+      CO5: `Utilize modern tools and computational practices for ${form.courseName || "the course"}.`,
+      CO6: `Evaluate performance metrics and formulate structured solutions in ${form.courseName || "the course"}.`,
+    };
+
+    const finalCOs: Record<string, string> = {
+      ...fallbackCOs,
+      ...returnedCOs,
+      ...directRegexCOs,
+    };
+
     const { data, error: dbErr } = await supabase
       .from("papers")
       .insert({
         status: "draft",
-        meta: { ...form, courseOutcomes: returnedCOs },
+        meta: { ...form, courseOutcomes: finalCOs },
         sets: result.sets,
         created_by_role: "designer",
         created_by_email: user?.email ?? null,
@@ -113,28 +128,16 @@ function NewPaper() {
       const syllText = await extractText(syllabus);
       setProgress("Extracting question bank text…");
       const qbText = await extractText(qb);
-      if (!qbText.trim()) throw new Error("Could not read the question bank file. Please upload a text-searchable PDF/DOCX/TXT.");
+      if (!qbText.trim())
+        throw new Error(
+          "Could not read the question bank file. Please upload a text-searchable PDF/DOCX/TXT.",
+        );
 
-      // Pre-flight CO check (warning only — the AI can still extract COs from prose)
-      const detected = detectCOs(syllText);
-      const required = form.testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
-      const missing = required.filter((c) => !detected.includes(c));
       if (!syllText.trim()) {
         throw new Error(
           "Could not read any text from the syllabus file. It may be a scanned image PDF — please upload a text-searchable PDF/DOCX/TXT.",
         );
       }
-      if (missing.length > 0) {
-        const proceed = confirm(
-          `Course Outcome check: detected ${detected.join(", ") || "none"} in the syllabus.\nTest ${form.testNumber} needs ${required.join(", ")} — missing: ${missing.join(", ")}.\n\nContinue generating anyway? The AI will still try to extract the COs from the syllabus text.`,
-        );
-        if (!proceed) {
-          setLoading(false);
-          setProgress("");
-          return;
-        }
-      }
-
 
       await runGenerate(syllText, qbText);
     } catch (err: any) {
@@ -150,52 +153,119 @@ function NewPaper() {
       <div className="max-w-3xl mx-auto p-6">
         <h1 className="text-2xl font-semibold mb-1">Generate New Question Paper</h1>
         <p className="text-sm text-muted-foreground mb-6">
-          Upload syllabus + question bank. AI will draft 3 sets (Easy / Medium / Hard) using only bank questions.
+          Upload syllabus + question bank. AI will draft 3 sets (Easy / Medium / Hard) using only
+          bank questions.
         </p>
         <form onSubmit={submit} className="space-y-5 bg-card border border-border rounded-lg p-6">
           <div className="grid grid-cols-2 gap-4">
+            <Field label="Exam Name">
+              <input
+                value={form.examName}
+                onChange={(e) => setForm({ ...form, examName: e.target.value })}
+                className={input}
+                placeholder="Internal Assessment - I"
+              />
+            </Field>
             <Field label="Date">
-              <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={input} />
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className={input}
+              />
             </Field>
             <Field label="Marks">
-              <select value={form.marks} onChange={(e) => {
-                const m = Number(e.target.value) as 20 | 30;
-                setForm({ ...form, marks: m, testNumber: m === 20 ? 1 : 2 });
-              }} className={input}>
+              <select
+                value={form.marks}
+                onChange={(e) => {
+                  const m = Number(e.target.value) as 20 | 30;
+                  setForm({ ...form, marks: m, testNumber: m === 20 ? 1 : 2 });
+                }}
+                className={input}
+              >
                 <option value={20}>20</option>
                 <option value={30}>30</option>
               </select>
             </Field>
             <Field label="Test">
-              <select value={form.testNumber} onChange={(e) => setForm({ ...form, testNumber: Number(e.target.value) as 1 | 2 })} className={input}>
+              <select
+                value={form.testNumber}
+                onChange={(e) => {
+                  const num = Number(e.target.value) as 1 | 2;
+                  setForm({
+                    ...form,
+                    testNumber: num,
+                    examName: num === 1 ? "Internal Assessment - I" : "Internal Assessment - II",
+                  });
+                }}
+                className={input}
+              >
                 <option value={1}>Test 1 (CO1–CO3)</option>
                 <option value={2}>Test 2 (CO4–CO6)</option>
               </select>
             </Field>
             <Field label="Course Name">
-              <input value={form.courseName} onChange={(e) => setForm({ ...form, courseName: e.target.value })} className={input} placeholder="Operating Systems" />
+              <input
+                value={form.courseName}
+                onChange={(e) => setForm({ ...form, courseName: e.target.value })}
+                className={input}
+                placeholder="Operating Systems"
+              />
             </Field>
             <Field label="Course Code">
-              <input value={form.courseCode} onChange={(e) => setForm({ ...form, courseCode: e.target.value })} className={input} placeholder="AI301" />
+              <input
+                value={form.courseCode}
+                onChange={(e) => setForm({ ...form, courseCode: e.target.value })}
+                className={input}
+                placeholder="AI301"
+              />
             </Field>
             <Field label="Class / Year">
-              <select value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} className={input}>
-                <option>FY</option><option>SY</option><option>TY</option><option>LY</option>
+              <select
+                value={form.className}
+                onChange={(e) => setForm({ ...form, className: e.target.value })}
+                className={input}
+              >
+                <option>FY</option>
+                <option>SY</option>
+                <option>TY</option>
+                <option>LY</option>
               </select>
             </Field>
             <Field label="Semester">
-              <select value={form.semester} onChange={(e) => setForm({ ...form, semester: e.target.value })} className={input}>
-                {["I","II","III","IV","V","VI","VII","VIII"].map((s) => <option key={s}>{s}</option>)}
+              <select
+                value={form.semester}
+                onChange={(e) => setForm({ ...form, semester: e.target.value })}
+                className={input}
+              >
+                {["I", "II", "III", "IV", "V", "VI", "VII", "VIII"].map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
               </select>
             </Field>
             <Field label="Academic Year">
-              <input value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} className={input} placeholder="2025-26" />
+              <input
+                value={form.academicYear}
+                onChange={(e) => setForm({ ...form, academicYear: e.target.value })}
+                className={input}
+                placeholder="2025-26"
+              />
             </Field>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FileField label="Syllabus PDF" file={syllabus} onChange={setSyllabus} accept=".pdf,.docx,.txt" />
-            <FileField label="Question Bank (PDF/DOCX/TXT)" file={qb} onChange={setQb} accept=".pdf,.docx,.txt" />
+            <FileField
+              label="Syllabus PDF"
+              file={syllabus}
+              onChange={setSyllabus}
+              accept=".pdf,.docx,.txt"
+            />
+            <FileField
+              label="Question Bank (PDF/DOCX/TXT)"
+              file={qb}
+              onChange={setQb}
+              accept=".pdf,.docx,.txt"
+            />
           </div>
 
           {error && (
@@ -222,7 +292,8 @@ function NewPaper() {
   );
 }
 
-const input = "w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
+const input =
+  "w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -233,14 +304,29 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function FileField({ label, file, onChange, accept }: { label: string; file: File | null; onChange: (f: File | null) => void; accept: string }) {
+function FileField({
+  label,
+  file,
+  onChange,
+  accept,
+}: {
+  label: string;
+  file: File | null;
+  onChange: (f: File | null) => void;
+  accept: string;
+}) {
   return (
     <div>
       <label className="text-sm font-medium block mb-1.5">{label}</label>
       <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-border rounded-md cursor-pointer hover:border-brand transition text-sm">
         <Upload className="w-4 h-4" />
         <span className="truncate">{file ? file.name : "Choose file"}</span>
-        <input type="file" accept={accept} onChange={(e) => onChange(e.target.files?.[0] || null)} className="hidden" />
+        <input
+          type="file"
+          accept={accept}
+          onChange={(e) => onChange(e.target.files?.[0] || null)}
+          className="hidden"
+        />
       </label>
     </div>
   );

@@ -1,6 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, FileDown, Image as ImageIcon, Pencil, Save, Send, Sparkles, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  FileDown,
+  Image as ImageIcon,
+  Pencil,
+  Save,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
@@ -11,12 +21,14 @@ import { getPattern } from "@/lib/paper-pattern";
 import { reframeQuestionFn } from "@/lib/reframe.functions";
 import type { GeneratedSet } from "@/lib/paper.functions";
 
-
 export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
   head: () => ({
     meta: [
       { title: "Edit Paper — Somaiya Portal" },
-      { name: "description", content: "Review generated sets, attach diagrams, and send the paper to DQC." },
+      {
+        name: "description",
+        content: "Review generated sets, attach diagrams, and send the paper to DQC.",
+      },
     ],
   }),
   component: () => (
@@ -37,12 +49,12 @@ function PaperEditor() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editedSets, setEditedSets] = useState<GeneratedSet[] | null>(null);
+  const [editedMeta, setEditedMeta] = useState<PaperMeta | null>(null);
   const [reframeOpen, setReframeOpen] = useState(false);
   const [reframeKey, setReframeKey] = useState("");
   const [reframeText, setReframeText] = useState("");
   const [reframing, setReframing] = useState(false);
   const [reframeErr, setReframeErr] = useState("");
-
 
   const load = async () => {
     const { data } = await supabase.from("papers").select("*").eq("id", id).maybeSingle();
@@ -64,9 +76,15 @@ function PaperEditor() {
     return m;
   }, [diagrams, activeSetIdx]);
 
-  if (!paper) return <div className="min-h-screen"><AppHeader /><div className="p-6 text-muted-foreground">Loading…</div></div>;
+  if (!paper)
+    return (
+      <div className="min-h-screen">
+        <AppHeader />
+        <div className="p-6 text-muted-foreground">Loading…</div>
+      </div>
+    );
 
-  const meta: PaperMeta = paper.meta;
+  const meta: PaperMeta = editedMeta ?? paper.meta;
   const sets: GeneratedSet[] = editedSets ?? paper.sets ?? [];
   const pattern = getPattern(meta.marks);
   const readOnly = paper.status !== "draft" && paper.status !== "not_approved";
@@ -83,21 +101,35 @@ function PaperEditor() {
     });
   };
 
+  const applyEditCO = (coKey: string, text: string) => {
+    setEditedMeta((prev) => {
+      const base: PaperMeta = prev ?? JSON.parse(JSON.stringify(paper.meta ?? {}));
+      const cos = { ...(base.courseOutcomes ?? {}) };
+      cos[coKey] = text;
+      return { ...base, courseOutcomes: cos };
+    });
+  };
+
   const saveEdits = async () => {
-    if (!editedSets) {
+    if (!editedSets && !editedMeta) {
       setEditing(false);
       return;
     }
     setSaving(true);
-    await supabase.from("papers").update({ sets: editedSets }).eq("id", id);
+    const updatePayload: any = {};
+    if (editedSets) updatePayload.sets = editedSets;
+    if (editedMeta) updatePayload.meta = editedMeta;
+    await supabase.from("papers").update(updatePayload).eq("id", id);
     setSaving(false);
     setEditing(false);
     setEditedSets(null);
+    setEditedMeta(null);
     await load();
   };
 
   const cancelEdits = () => {
     setEditedSets(null);
+    setEditedMeta(null);
     setEditing(false);
   };
 
@@ -134,7 +166,6 @@ function PaperEditor() {
     await load();
   };
 
-
   const finalizeSet = async (idx: number) => {
     setSaving(true);
     await supabase.from("papers").update({ selected_set_index: idx }).eq("id", id);
@@ -157,13 +188,22 @@ function PaperEditor() {
 
   const uploadDiagram = async (file: File) => {
     const url = await fileToDataUrl(file);
-    await supabase.from("diagrams").upsert(
-      { paper_id: id, set_index: activeSetIdx, question_key: attachKey, image_url: url },
-      { onConflict: "paper_id,set_index,question_key" as any },
-    );
+    await supabase
+      .from("diagrams")
+      .upsert(
+        { paper_id: id, set_index: activeSetIdx, question_key: attachKey, image_url: url },
+        { onConflict: "paper_id,set_index,question_key" as any },
+      );
     // Since we don't have a unique constraint, delete existing then insert
-    await supabase.from("diagrams").delete().eq("paper_id", id).eq("set_index", activeSetIdx).eq("question_key", attachKey);
-    await supabase.from("diagrams").insert({ paper_id: id, set_index: activeSetIdx, question_key: attachKey, image_url: url });
+    await supabase
+      .from("diagrams")
+      .delete()
+      .eq("paper_id", id)
+      .eq("set_index", activeSetIdx)
+      .eq("question_key", attachKey);
+    await supabase
+      .from("diagrams")
+      .insert({ paper_id: id, set_index: activeSetIdx, question_key: attachKey, image_url: url });
     setAttachOpen(false);
     setAttachKey("");
     await load();
@@ -175,7 +215,8 @@ function PaperEditor() {
   const doExport = async (kind: "pdf" | "docx") => {
     const set = sets[selectedIdx ?? activeSetIdx];
     const dm: Record<string, string> = {};
-    for (const d of diagrams) if (d.set_index === (selectedIdx ?? activeSetIdx)) dm[d.question_key] = d.image_url;
+    for (const d of diagrams)
+      if (d.set_index === (selectedIdx ?? activeSetIdx)) dm[d.question_key] = d.image_url;
     const fname = `${meta.courseCode}_${meta.marks}marks.${kind}`;
     if (kind === "pdf") await exportPaperPdf(meta, set, dm, paper.dqc_signature_url, fname);
     else await exportPaperDocx(meta, set, dm, paper.dqc_signature_url, fname);
@@ -187,7 +228,9 @@ function PaperEditor() {
       <div className="max-w-6xl mx-auto p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-semibold">{meta.courseName} ({meta.courseCode})</h1>
+            <h1 className="text-2xl font-semibold">
+              {meta.courseName} ({meta.courseCode})
+            </h1>
             <p className="text-sm text-muted-foreground">
               {meta.marks} marks · {meta.className} Sem {meta.semester} · Status:{" "}
               <span className="font-medium">{paper.status.replace(/_/g, " ")}</span>
@@ -201,10 +244,16 @@ function PaperEditor() {
           <div className="flex gap-2">
             {selectedIdx != null && (
               <>
-                <button onClick={() => doExport("pdf")} className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-md text-sm hover:bg-accent">
+                <button
+                  onClick={() => doExport("pdf")}
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                >
                   <FileDown className="w-4 h-4" /> PDF
                 </button>
-                <button onClick={() => doExport("docx")} className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-md text-sm hover:bg-accent">
+                <button
+                  onClick={() => doExport("docx")}
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-md text-sm hover:bg-accent"
+                >
                   <Download className="w-4 h-4" /> Word
                 </button>
               </>
@@ -227,7 +276,9 @@ function PaperEditor() {
               key={i}
               onClick={() => setActiveSetIdx(i)}
               className={`px-4 py-2 rounded-md text-sm transition ${
-                activeSetIdx === i ? "bg-brand text-brand-foreground" : "bg-card border border-border hover:bg-accent"
+                activeSetIdx === i
+                  ? "bg-brand text-brand-foreground"
+                  : "bg-card border border-border hover:bg-accent"
               }`}
             >
               {setLabels[i]}
@@ -243,7 +294,8 @@ function PaperEditor() {
               disabled={selectedIdx === activeSetIdx || saving || editing}
               className="inline-flex items-center gap-2 px-4 py-2 border border-brand text-brand rounded-md text-sm hover:bg-brand-muted transition disabled:opacity-50"
             >
-              <CheckCircle2 className="w-4 h-4" /> {selectedIdx === activeSetIdx ? "This is the selected set" : "Finalize this set"}
+              <CheckCircle2 className="w-4 h-4" />{" "}
+              {selectedIdx === activeSetIdx ? "This is the selected set" : "Finalize this set"}
             </button>
             <button
               onClick={() => setAttachOpen(true)}
@@ -289,7 +341,7 @@ function PaperEditor() {
                   <X className="w-4 h-4" /> Cancel
                 </button>
                 <span className="self-center text-xs text-muted-foreground">
-                  Click any question text to edit. Save to persist, then Send to DQC.
+                  Click any question text or Course Outcome to edit in-place. Save to persist.
                 </span>
               </>
             )}
@@ -308,6 +360,7 @@ function PaperEditor() {
           }}
           editable={editing}
           onEditQuestion={applyEdit}
+          onEditCO={applyEditCO}
         />
       </div>
 
@@ -316,7 +369,11 @@ function PaperEditor() {
           <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Attach diagram</h3>
-              <button onClick={() => setAttachOpen(false)} aria-label="Close" className="p-1 hover:bg-accent rounded">
+              <button
+                onClick={() => setAttachOpen(false)}
+                aria-label="Close"
+                className="p-1 hover:bg-accent rounded"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -329,7 +386,9 @@ function PaperEditor() {
               >
                 <option value="">Select question…</option>
                 {pattern.map((p) => (
-                  <option key={p.key} value={p.key}>{p.key}</option>
+                  <option key={p.key} value={p.key}>
+                    {p.key}
+                  </option>
                 ))}
               </select>
               <label className="text-sm block">Image</label>
@@ -340,7 +399,9 @@ function PaperEditor() {
                 onChange={(e) => e.target.files?.[0] && uploadDiagram(e.target.files[0])}
                 className="w-full text-sm"
               />
-              <p className="text-xs text-muted-foreground">The image will render directly below the selected question.</p>
+              <p className="text-xs text-muted-foreground">
+                The image will render directly below the selected question.
+              </p>
             </div>
           </div>
         </div>
@@ -351,7 +412,11 @@ function PaperEditor() {
           <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Reframe question</h3>
-              <button onClick={() => setReframeOpen(false)} aria-label="Close reframe dialog" className="p-1 hover:bg-accent rounded">
+              <button
+                onClick={() => setReframeOpen(false)}
+                aria-label="Close reframe dialog"
+                className="p-1 hover:bg-accent rounded"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -424,7 +489,6 @@ function PaperEditor() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

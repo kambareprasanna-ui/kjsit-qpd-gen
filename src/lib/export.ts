@@ -49,15 +49,31 @@ export async function exportPaperPdf(
   y += 16;
   doc.setFont("times", "italic");
   doc.setFontSize(9);
-  doc.text("An Autonomous Institute permanently affiliated to University of Mumbai.", pageW / 2, y, { align: "center" });
+  doc.text(
+    "An Autonomous Institute permanently affiliated to University of Mumbai.",
+    pageW / 2,
+    y,
+    { align: "center" },
+  );
   y += 14;
   doc.setFont("times", "normal");
   doc.setFontSize(10);
   doc.text(`Academic Year ${meta.academicYear}`, pageW / 2, y, { align: "center" });
   y += 14;
+  if (meta.examName) {
+    doc.setFont("times", "bold");
+    doc.setFontSize(11);
+    doc.text(meta.examName.toUpperCase(), pageW / 2, y, { align: "center" });
+    y += 14;
+  }
   doc.setFont("times", "bold");
   doc.setFontSize(11);
-  doc.text(meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE", pageW / 2, y, { align: "center" });
+  doc.text(
+    meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE",
+    pageW / 2,
+    y,
+    { align: "center" },
+  );
   y += 20;
   doc.setDrawColor(0);
   doc.line(margin, y, pageW - margin, y);
@@ -91,7 +107,13 @@ export async function exportPaperPdf(
     let x = startX;
     if (header) {
       doc.setFillColor(230, 230, 230);
-      doc.rect(startX, y, cols.reduce((a, c) => a + c.w, 0), rowH, "F");
+      doc.rect(
+        startX,
+        y,
+        cols.reduce((a, c) => a + c.w, 0),
+        rowH,
+        "F",
+      );
     }
     doc.setFont("times", header ? "bold" : "normal");
     for (let i = 0; i < cols.length; i++) {
@@ -102,7 +124,11 @@ export async function exportPaperPdf(
     }
     y += rowH;
   };
-  drawRow(cols.map((c) => c.label), 20, true);
+  drawRow(
+    cols.map((c) => c.label),
+    20,
+    true,
+  );
 
   const pattern = getPattern(meta.marks);
   const grouped = groupByQ(pattern);
@@ -173,7 +199,14 @@ export async function exportPaperPdf(
 }
 
 // ---------- Word ----------
-function tc(text: string, opts: { bold?: boolean; width?: number; align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}) {
+function tc(
+  text: string,
+  opts: {
+    bold?: boolean;
+    width?: number;
+    align?: (typeof AlignmentType)[keyof typeof AlignmentType];
+  } = {},
+) {
   return new TableCell({
     width: opts.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
     children: [
@@ -210,20 +243,106 @@ export async function exportPaperDocx(
   const grouped = groupByQ(pattern);
 
   const header = [
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "K J Somaiya Institute of Technology", bold: true, size: 28, font: "Times New Roman" })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "An Autonomous Institute permanently affiliated to University of Mumbai.", italics: true, size: 20, font: "Times New Roman" })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Academic Year ${meta.academicYear}`, size: 22, font: "Times New Roman" })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE", bold: true, size: 22, font: "Times New Roman" })] }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: "K J Somaiya Institute of Technology",
+          bold: true,
+          size: 28,
+          font: "Times New Roman",
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: "An Autonomous Institute permanently affiliated to University of Mumbai.",
+          italics: true,
+          size: 20,
+          font: "Times New Roman",
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: `Academic Year ${meta.academicYear}`,
+          size: 22,
+          font: "Times New Roman",
+        }),
+      ],
+    }),
+    ...(meta.examName
+      ? [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: meta.examName.toUpperCase(),
+                bold: true,
+                size: 24,
+                font: "Times New Roman",
+              }),
+            ],
+          }),
+        ]
+      : []),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({
+          text: meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE",
+          bold: true,
+          size: 22,
+          font: "Times New Roman",
+        }),
+      ],
+    }),
     new Paragraph({ children: [new TextRun({ text: "" })] }),
   ];
 
   const metaTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      new TableRow({ children: [tc(`Class: ${meta.className}`), tc(`Semester: ${meta.semester}`), tc(`Date: ${meta.date}`, { width: 50 })] }),
-      new TableRow({ children: [tc(`Course Name: ${meta.courseName}`), tc(""), tc(`Marks: ${meta.marks}`)] }),
-      new TableRow({ children: [tc(`Course Code: ${meta.courseCode}`), tc(""), tc(`Time: ${paperTime(meta.marks)}`)] }),
-      new TableRow({ children: [new TableCell({ columnSpan: 3, children: [new Paragraph({ children: [new TextRun({ text: `Note: ${paperInstruction(meta.marks)}`, bold: true, font: "Times New Roman", size: 22 })] })] })] }),
+      new TableRow({
+        children: [
+          tc(`Class: ${meta.className}`),
+          tc(`Semester: ${meta.semester}`),
+          tc(`Date: ${meta.date}`, { width: 50 }),
+        ],
+      }),
+      new TableRow({
+        children: [tc(`Course Name: ${meta.courseName}`), tc(""), tc(`Marks: ${meta.marks}`)],
+      }),
+      new TableRow({
+        children: [
+          tc(`Course Code: ${meta.courseCode}`),
+          tc(""),
+          tc(`Time: ${paperTime(meta.marks)}`),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({
+            columnSpan: 3,
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `Note: ${paperInstruction(meta.marks)}`,
+                    bold: true,
+                    font: "Times New Roman",
+                    size: 22,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
     ],
   });
 
@@ -260,7 +379,9 @@ export async function exportPaperDocx(
       const q = set.questions.find((x) => x.key === slot.key);
       const diag = diagrams[slot.key];
       const stmtChildren = [
-        new Paragraph({ children: [new TextRun({ text: q?.text ?? "", font: "Times New Roman", size: 22 })] }),
+        new Paragraph({
+          children: [new TextRun({ text: q?.text ?? "", font: "Times New Roman", size: 22 })],
+        }),
       ];
       if (diag) {
         const p = imageCell(diag);
@@ -285,8 +406,20 @@ export async function exportPaperDocx(
 
   const footer: Paragraph[] = [
     new Paragraph({ children: [new TextRun({ text: "" })] }),
-    new Paragraph({ children: [new TextRun({ text: "Verified By: Dr. Milind Nemade", font: "Times New Roman", size: 22 })] }),
-    new Paragraph({ children: [new TextRun({ text: "DQC Member                                          Head of the Department", font: "Times New Roman", size: 22 })] }),
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Verified By: Dr. Milind Nemade", font: "Times New Roman", size: 22 }),
+      ],
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: "DQC Member                                          Head of the Department",
+          font: "Times New Roman",
+          size: 22,
+        }),
+      ],
+    }),
   ];
   if (signatureUrl) {
     const p = imageCell(signatureUrl);
@@ -296,7 +429,13 @@ export async function exportPaperDocx(
   const doc = new Document({
     sections: [
       {
-        children: [...header, metaTable, new Paragraph({ children: [new TextRun({ text: "" })] }), questionsTable, ...footer],
+        children: [
+          ...header,
+          metaTable,
+          new Paragraph({ children: [new TextRun({ text: "" })] }),
+          questionsTable,
+          ...footer,
+        ],
       },
     ],
   });

@@ -102,7 +102,7 @@ Header on all dashboards shows current demo user + role switcher.
 6. DQC dashboard (view, analysis, signature, approve/reject).
 7. Exam Coord dashboard (view/print/download).
 8. Rejection notifications back to Designer.
- QUESTION PAPER SHOULD HAVE QUESTIONS DERIVED ONLY FROM THE QUESTIN BANK UPLOADED BY THE DESIGNER. FOLLOW THE PROPER FORMAT LAYOUT ATTACHED ABOVE.
+   QUESTION PAPER SHOULD HAVE QUESTIONS DERIVED ONLY FROM THE QUESTIN BANK UPLOADED BY THE DESIGNER. FOLLOW THE PROPER FORMAT LAYOUT ATTACHED ABOVE.
 
 This project was built with [Lovable](https://lovable.dev).
 

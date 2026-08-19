@@ -33,11 +33,7 @@ export function AppHeader() {
   if (!user) return null;
 
   const roleLabel =
-    user.role === "designer"
-      ? "Faculty"
-      : user.role === "dqc"
-        ? "DQC Member"
-        : "Exam Coordinator";
+    user.role === "designer" ? "Faculty" : user.role === "dqc" ? "DQC Member" : "Exam Coordinator";
 
   return (
     <header className="border-b border-border bg-card sticky top-0 z-40 no-print">

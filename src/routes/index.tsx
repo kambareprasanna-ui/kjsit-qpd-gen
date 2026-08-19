@@ -33,7 +33,7 @@ function Landing() {
   }, [user, navigate]);
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center p-6">
+    <main className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
         <div className="flex justify-center mb-8">
           <Logo size={64} />
@@ -49,6 +49,30 @@ function Landing() {
           >
             Sign in
           </Link>
+        </div>
+      </div>
+      <div className="mt-10 inline-flex flex-col items-center rounded-[2rem] border border-red-100/50 bg-red-50/30 px-8 py-5 shadow-[0_8px_30px_rgba(153,27,27,0.05)] backdrop-blur-xl">
+        <span className="mb-3 text-[9px] font-bold uppercase tracking-[0.25em] text-red-900/50">
+          Designed &amp; Developed By
+        </span>
+        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8">
+          <div className="flex flex-col items-center">
+            <h4 className="font-serif text-[18px] sm:text-[19px] font-semibold leading-none text-red-950">
+              Priya Thombare
+            </h4>
+          </div>
+          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-red-200/70 to-transparent" />
+          <div className="flex flex-col items-center">
+            <h4 className="font-serif text-[18px] sm:text-[19px] font-semibold leading-none text-red-950">
+              Vaishnavi Shinde
+            </h4>
+          </div>
+          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-red-200/70 to-transparent" />
+          <div className="flex flex-col items-center">
+            <h4 className="font-serif text-[18px] sm:text-[19px] font-semibold leading-none text-red-950">
+              Samiksha Sontakke
+            </h4>
+          </div>
         </div>
       </div>
     </main>

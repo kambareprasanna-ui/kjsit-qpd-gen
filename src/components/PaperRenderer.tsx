@@ -4,6 +4,7 @@ import { getPattern, paperInstruction, paperTime, type PatternSlot } from "@/lib
 import logo from "@/assets/svv-logo.png.asset.json";
 
 export type PaperMeta = {
+  examName?: string;
   courseName: string;
   courseCode: string;
   className: string;
@@ -28,6 +29,7 @@ export function PaperRenderer({
   onAttachClick,
   editable = false,
   onEditQuestion,
+  onEditCO,
 }: {
   meta: PaperMeta;
   set: GeneratedSet;
@@ -38,6 +40,7 @@ export function PaperRenderer({
   onAttachClick?: (key: string) => void;
   editable?: boolean;
   onEditQuestion?: (key: string, text: string) => void;
+  onEditCO?: (coKey: string, text: string) => void;
 }) {
   const pattern = getPattern(meta.marks);
   const dept = meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE";
@@ -48,13 +51,24 @@ export function PaperRenderer({
   return (
     <div className="paper-page p-10 max-w-[820px] mx-auto shadow border border-border">
       {/* Header block */}
-      <div className="flex items-start gap-4 border-b border-black pb-4 mb-4">
-        <img src={logo.url} alt="Somaiya" className="w-20 h-20 object-contain" />
+      <div className="flex items-center gap-4 border-b border-black pb-4 mb-4">
+        <img
+          src={logo.url}
+          alt="Somaiya Vidyavihar University"
+          className="h-16 w-auto object-contain shrink-0"
+        />
         <div className="flex-1 text-center">
           <div className="text-[10pt] tracking-widest">SOMAIYA VIDYAVIHAR UNIVERSITY</div>
           <div className="text-[14pt] font-bold">K J Somaiya Institute of Technology</div>
-          <div className="text-[10pt] italic">An Autonomous Institute permanently affiliated to University of Mumbai.</div>
+          <div className="text-[10pt] italic">
+            An Autonomous Institute permanently affiliated to University of Mumbai.
+          </div>
           <div className="text-[11pt] mt-2">Academic Year {meta.academicYear}</div>
+          {meta.examName && (
+            <div className="text-[12pt] font-bold mt-1 tracking-wide uppercase">
+              {meta.examName}
+            </div>
+          )}
           <div className="text-[12pt] font-bold mt-1">{dept}</div>
           {setLabel && <div className="text-[10pt] mt-1 text-brand font-semibold">{setLabel}</div>}
         </div>
@@ -64,20 +78,36 @@ export function PaperRenderer({
       <table className="mb-3">
         <tbody>
           <tr>
-            <td><b>Class:</b> {meta.className}</td>
-            <td><b>Semester:</b> {meta.semester}</td>
-            <td colSpan={2}><b>Date:</b> {meta.date}</td>
+            <td>
+              <b>Class:</b> {meta.className}
+            </td>
+            <td>
+              <b>Semester:</b> {meta.semester}
+            </td>
+            <td colSpan={2}>
+              <b>Date:</b> {meta.date}
+            </td>
           </tr>
           <tr>
-            <td colSpan={2}><b>Course Name:</b> {meta.courseName}</td>
-            <td colSpan={2}><b>Marks:</b> {meta.marks}</td>
+            <td colSpan={2}>
+              <b>Course Name:</b> {meta.courseName}
+            </td>
+            <td colSpan={2}>
+              <b>Marks:</b> {meta.marks}
+            </td>
           </tr>
           <tr>
-            <td colSpan={2}><b>Course Code:</b> {meta.courseCode}</td>
-            <td colSpan={2}><b>Time:</b> {paperTime(meta.marks)}</td>
+            <td colSpan={2}>
+              <b>Course Code:</b> {meta.courseCode}
+            </td>
+            <td colSpan={2}>
+              <b>Time:</b> {paperTime(meta.marks)}
+            </td>
           </tr>
           <tr>
-            <td colSpan={4}><b>Note:</b> {paperInstruction(meta.marks)}</td>
+            <td colSpan={4}>
+              <b>Note:</b> {paperInstruction(meta.marks)}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -111,7 +141,7 @@ export function PaperRenderer({
       </table>
 
       {/* Course outcomes + signatures */}
-      <CourseOutcomesFooter meta={meta} />
+      <CourseOutcomesFooter meta={meta} editable={editable} onEditCO={onEditCO} />
 
       <div className="mt-8 flex justify-between items-end text-[11pt]">
         <div>
@@ -124,8 +154,12 @@ export function PaperRenderer({
           )}
         </div>
         <div>
-          <div>Verified By: <b>Dr. Milind Nemade</b></div>
-          <div className="border-t border-black pt-1 w-56 text-center mt-1">Head of the Department</div>
+          <div>
+            Verified By: <b>Dr. Milind Nemade</b>
+          </div>
+          <div className="border-t border-black pt-1 w-56 text-center mt-1">
+            Head of the Department
+          </div>
         </div>
       </div>
     </div>
@@ -167,7 +201,9 @@ function RenderGroup({
         <tr key={`${slot.key}-or`}>
           <td>{slot.qNo}</td>
           <td></td>
-          <td className="text-center italic"><b>OR</b></td>
+          <td className="text-center italic">
+            <b>OR</b>
+          </td>
           <td></td>
           <td></td>
           <td></td>
@@ -218,21 +254,42 @@ function uniqCOs(set: GeneratedSet): string[] {
   return Array.from(new Set(set.questions.map((q) => q.co))).sort();
 }
 
-function CourseOutcomesFooter({ meta }: { meta: PaperMeta }) {
+function CourseOutcomesFooter({
+  meta,
+  editable,
+  onEditCO,
+}: {
+  meta: PaperMeta;
+  editable?: boolean;
+  onEditCO?: (coKey: string, text: string) => void;
+}) {
   const testNumber: 1 | 2 = meta.testNumber ?? (meta.marks === 20 ? 1 : 2);
   const targetCOs = testNumber === 1 ? ["CO1", "CO2", "CO3"] : ["CO4", "CO5", "CO6"];
   const all = meta.courseOutcomes ?? {};
   return (
     <div className="mt-6 text-[11pt] border-t border-black pt-3">
-      <div className="font-bold mb-1">
-        Course Outcomes (Test {testNumber}):
-      </div>
+      <div className="font-bold mb-1">Course Outcomes (Test {testNumber}):</div>
       <table>
         <tbody>
           {targetCOs.map((co) => (
             <tr key={co}>
-              <td style={{ width: "10%" }} className="align-top"><b>{co}</b></td>
-              <td>{all[co] ?? <span className="italic text-gray-500">Not found in syllabus</span>}</td>
+              <td style={{ width: "10%" }} className="align-top font-bold">
+                {co}
+              </td>
+              <td>
+                {editable ? (
+                  <div
+                    contentEditable
+                    suppressContentEditableWarning
+                    onBlur={(e) => onEditCO?.(co, e.currentTarget.textContent ?? "")}
+                    className="outline-none focus:ring-2 focus:ring-brand/40 rounded px-1 py-0.5 min-h-[1.5em] bg-yellow-50 dark:bg-yellow-900/10"
+                  >
+                    {all[co] ?? ""}
+                  </div>
+                ) : (
+                  (all[co] ?? <span className="italic text-gray-500">Not found in syllabus</span>)
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

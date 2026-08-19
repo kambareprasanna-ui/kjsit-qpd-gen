@@ -10,7 +10,8 @@ export const Route = createFileRoute("/auth")({
       { title: "Sign in — KJSIT Question Paper Portal" },
       {
         name: "description",
-        content: "Sign in or register with your @somaiya.edu address to use the question-paper portal.",
+        content:
+          "Sign in or register with your @somaiya.edu address to use the question-paper portal.",
       },
       { property: "og:title", content: "Sign in — KJSIT Question Paper Portal" },
       {
@@ -97,7 +98,11 @@ function AuthPage() {
   };
 
   const heading =
-    mode === "signin" ? "Sign in" : mode === "signup" ? "Create your account" : "Reset your password";
+    mode === "signin"
+      ? "Sign in"
+      : mode === "signup"
+        ? "Create your account"
+        : "Reset your password";
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
@@ -210,32 +215,26 @@ function AuthPage() {
         </div>
       </main>
       <div className="mt-6 inline-flex flex-col items-center rounded-[2rem] border border-red-100/50 bg-red-50/30 px-8 py-5 shadow-[0_8px_30px_rgba(153,27,27,0.05)] backdrop-blur-xl">
-        <span className="mb-4 text-[9px] font-bold uppercase tracking-[0.25em] text-red-900/50">
+        <span className="mb-3 text-[9px] font-bold uppercase tracking-[0.25em] text-red-900/50">
           Designed &amp; Developed By
         </span>
-        <div className="flex items-center gap-8 sm:gap-12">
+        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8">
           <div className="flex flex-col items-center">
-            <h4 className="mb-1 font-serif text-[19px] font-semibold leading-none text-red-950">
+            <h4 className="font-serif text-[18px] sm:text-[19px] font-semibold leading-none text-red-950">
               Priya Thombare
             </h4>
-            <a
-              href="mailto:priya.thombare@somaiya.edu"
-              className="text-[10px] font-medium tracking-wide text-red-800/60 transition-colors duration-300 hover:text-red-900"
-            >
-              priya.thombare@somaiya.edu
-            </a>
           </div>
-          <div className="h-10 w-px bg-gradient-to-b from-transparent via-red-200/70 to-transparent" />
+          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-red-200/70 to-transparent" />
           <div className="flex flex-col items-center">
-            <h4 className="mb-1 font-serif text-[19px] font-semibold leading-none text-red-950">
+            <h4 className="font-serif text-[18px] sm:text-[19px] font-semibold leading-none text-red-950">
               Vaishnavi Shinde
             </h4>
-            <a
-              href="mailto:vaishnavi.ys@somaiya.edu"
-              className="text-[10px] font-medium tracking-wide text-red-800/60 transition-colors duration-300 hover:text-red-900"
-            >
-              vaishnavi.ys@somaiya.edu
-            </a>
+          </div>
+          <div className="hidden sm:block h-6 w-px bg-gradient-to-b from-transparent via-red-200/70 to-transparent" />
+          <div className="flex flex-col items-center">
+            <h4 className="font-serif text-[18px] sm:text-[19px] font-semibold leading-none text-red-950">
+              Samiksha Sontakke
+            </h4>
           </div>
         </div>
       </div>

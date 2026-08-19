@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { generateContentWithRetry } from "./gemini.server";
 
 const ReframeInput = z.object({
   text: z.string().min(3),
@@ -19,24 +20,63 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     });
     if (!isFaculty) throw new Error("Only faculty can reframe questions.");
 
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
-
     const VERBS: Record<string, string[]> = {
       Remember: [
-        "choose","define","find","how","label","list","match","name","omit",
-        "recall","relate","select","show","spell","tell","what","when","where",
-        "which","who","why",
+        "choose",
+        "define",
+        "find",
+        "how",
+        "label",
+        "list",
+        "match",
+        "name",
+        "omit",
+        "recall",
+        "relate",
+        "select",
+        "show",
+        "spell",
+        "tell",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
       ],
       Understand: [
-        "classify","compare","contrast","demonstrate","explain","extend",
-        "illustrate","infer","interpret","outline","relate","rephrase","show",
-        "summarize","translate",
+        "classify",
+        "compare",
+        "contrast",
+        "demonstrate",
+        "explain",
+        "extend",
+        "illustrate",
+        "infer",
+        "interpret",
+        "outline",
+        "relate",
+        "rephrase",
+        "show",
+        "summarize",
+        "translate",
       ],
       Apply: [
-        "apply","build","choose","construct","develop","experiment with",
-        "identify","interview","make use of","model","organize","plan","select",
-        "solve","utilize",
+        "apply",
+        "build",
+        "choose",
+        "construct",
+        "develop",
+        "experiment with",
+        "identify",
+        "interview",
+        "make use of",
+        "model",
+        "organize",
+        "plan",
+        "select",
+        "solve",
+        "utilize",
       ],
     };
     const bloomRaw = data.bloom.trim().toLowerCase();
@@ -48,43 +88,29 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
     const allowed = VERBS[levelKey]!;
 
     const callAI = async (extra = "") => {
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
-        body: JSON.stringify({
-          model: "openai/gpt-5.5",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You rephrase university exam questions. Keep the same topic, technical content, difficulty and marks weight. " +
-                `The question MUST stay at Bloom's Taxonomy level "${levelKey}" (Revised Bloom's Taxonomy, Anderson & Krathwohl 2001). ` +
-                `It MUST start with exactly one action verb from this list for that level: ${allowed.join(", ")}. ` +
-                "Never use a verb belonging to any other Bloom level. Do not add new sub-parts. " +
-                "Return ONLY the reframed question sentence, no quotes, no commentary." +
-                extra,
-            },
-            {
-              role: "user",
-              content: `Course: ${data.courseName ?? "-"}\nBloom level: ${levelKey}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it starting with a ${levelKey}-level action verb from the allowed list.`,
-            },
-          ],
-        }),
+      const sys =
+        "You rephrase university exam questions. Keep the same topic, technical content, difficulty and marks weight. " +
+        `The question MUST stay at Bloom's Taxonomy level "${levelKey}" (Revised Bloom's Taxonomy, Anderson & Krathwohl 2001). ` +
+        `It MUST start with exactly one action verb from this list for that level: ${allowed.join(", ")}. ` +
+        "Never use a verb belonging to any other Bloom level. Do not add new sub-parts. " +
+        "Return ONLY the reframed question sentence, no quotes, no commentary." +
+        extra;
+
+      const user = `Course: ${data.courseName ?? "-"}\nBloom level: ${levelKey}\nMarks: ${data.marks}\n\nQuestion: ${data.text}\n\nReframe it starting with a ${levelKey}-level action verb from the allowed list.`;
+
+      const response = await generateContentWithRetry({
+        preferredModel: "gemini-3.7-flash",
+        contents: user,
+        config: {
+          systemInstruction: sys,
+        },
       });
 
-      if (!res.ok) {
-        const txt = await res.text();
-        if (res.status === 429) throw new Error("AI rate limit reached. Please try again shortly.");
-        if (res.status === 402) throw new Error("AI credits exhausted. Please top up your workspace.");
-        throw new Error(`AI error ${res.status}: ${txt.slice(0, 300)}`);
-      }
-      const json: any = await res.json();
-      return ((json.choices?.[0]?.message?.content ?? "") as string).trim().replace(/^["']|["']$/g, "");
+      return (response.text ?? "").trim().replace(/^["']|["']$/g, "");
     };
 
     const clean = (s: string) => s.toLowerCase().replace(/^[^a-z]+/, "");
-    const matchedAllowed = (s: string) =>
-      allowed.find((v) => clean(s).startsWith(v.toLowerCase()));
+    const matchedAllowed = (s: string) => allowed.find((v) => clean(s).startsWith(v.toLowerCase()));
 
     // Verbs that belong to any OTHER Bloom level (and not to this one) are forbidden anywhere.
     const foreignVerbs = Object.entries(VERBS)
@@ -94,7 +120,10 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
 
     const foreignVerbUsed = (s: string) =>
       foreignVerbs.find((v) =>
-        new RegExp(`(^|[^a-z])${v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(s|es|ed|ing)?([^a-z]|$)`, "i").test(s),
+        new RegExp(
+          `(^|[^a-z])${v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(s|es|ed|ing)?([^a-z]|$)`,
+          "i",
+        ).test(s),
       );
 
     let out = await callAI();
@@ -123,4 +152,3 @@ export const reframeQuestionFn = createServerFn({ method: "POST" })
 
     return { text: out };
   });
-
