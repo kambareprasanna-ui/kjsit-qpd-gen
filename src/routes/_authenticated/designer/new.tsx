@@ -152,7 +152,7 @@ function NewPaper() {
     const puter = await loadPuter();
     const prompt = `Return ONLY valid JSON for an academic question paper generator. Create exactly three sets named Easy, Medium, and Hard with mutually unique questions selected exclusively from the question bank. Include courseOutcomes with CO1 through CO6 when available. Each question needs key, text, marks, bloom, co, module, and needsDiagram. Course: ${form.courseName} (${form.courseCode}), marks: ${form.marks}, subject type: ${form.subjectType}. Syllabus:\n${syllText.slice(0, 18000)}\nQuestion bank:\n${qbText.slice(0, 50000)}`;
     setProgress("Generating 3 mutually unique question paper sets with Puter AI…");
-    const response = await puter.ai.chat(prompt, { model: "google/gemini-3.1-pro-preview" });
+    const response = await puter.ai.chat(prompt, { model: "qwen/qwen3.8-max" });
     const generatedResponse = parsePuterResponse(response);
     setProgress("Validating and saving paper…");
     const result = await generate({
