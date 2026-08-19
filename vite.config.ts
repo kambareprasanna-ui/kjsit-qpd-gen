@@ -8,10 +8,20 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   vite: {
-    // Prevent stale optimizer entries from breaking preview module imports after
-    // repeated HMR/config restarts. React is resolved directly by Vite instead.
-    optimizeDeps: {
-      exclude: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    // The connected project exposes Supabase values as NEXT_PUBLIC_* and
+    // SUPABASE_* variables. Map only the browser-safe values to the Vite names
+    // consumed by the generated client; leave the shared plugin configuration intact.
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
+        process.env.VITE_SUPABASE_URL ||
+          process.env.NEXT_PUBLIC_SUPABASE_URL ||
+          process.env.SUPABASE_URL,
+      ),
+      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
+        process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+          process.env.SUPABASE_PUBLISHABLE_KEY,
+      ),
     },
   },
   tanstackStart: {
