@@ -130,7 +130,8 @@ function DesignerHome() {
               You are signed in as <b>Faculty / Paper Designer</b>.
             </p>
             <p className="text-muted-foreground leading-relaxed">
-              Appointment as <b>DQC Member</b> or <b>Exam Coordinator</b> is granted upon HOD approval.
+              Appointment as <b>DQC Member</b> or <b>Exam Coordinator</b> is granted upon HOD
+              approval.
             </p>
             <button
               onClick={() => setShowRoleModal(true)}
@@ -209,7 +210,8 @@ function DesignerHome() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Submit an official request to the Head of Department (HOD) to be assigned as a Department Quality Circle (DQC) Member or Exam Coordinator.
+              Submit an official request to the Head of Department (HOD) to be assigned as a
+              Department Quality Circle (DQC) Member or Exam Coordinator.
             </p>
 
             {roleSubmitSuccess ? (
@@ -232,7 +234,9 @@ function DesignerHome() {
                       }`}
                     >
                       <div className="font-medium text-sm">DQC Member</div>
-                      <div className="text-[11px] mt-0.5 opacity-80">Review &amp; approve departmental papers</div>
+                      <div className="text-[11px] mt-0.5 opacity-80">
+                        Review &amp; approve departmental papers
+                      </div>
                     </button>
                     <button
                       type="button"
@@ -244,13 +248,17 @@ function DesignerHome() {
                       }`}
                     >
                       <div className="font-medium text-sm">Exam Coordinator</div>
-                      <div className="text-[11px] mt-0.5 opacity-80">Print &amp; schedule approved exams</div>
+                      <div className="text-[11px] mt-0.5 opacity-80">
+                        Print &amp; schedule approved exams
+                      </div>
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium block mb-1.5">Note for HOD (Optional)</label>
+                  <label className="text-xs font-medium block mb-1.5">
+                    Note for HOD (Optional)
+                  </label>
                   <textarea
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}

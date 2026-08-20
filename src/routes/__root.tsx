@@ -78,17 +78,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "KJSIT— Question Paper Portal" },
-      { name: "description", content: "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers." },
+      {
+        name: "description",
+        content:
+          "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers.",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "KJSIT— Question Paper Portal" },
-      { property: "og:description", content: "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers." },
+      {
+        property: "og:description",
+        content:
+          "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "KJSIT— Question Paper Portal" },
-      { name: "twitter:description", content: "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/I7Mmjgqb7jVd6vqRrB4kL3YAfQ33/social-images/social-1785243958419-SVV.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/I7Mmjgqb7jVd6vqRrB4kL3YAfQ33/social-images/social-1785243958419-SVV.webp" },
+      {
+        name: "twitter:description",
+        content:
+          "Somaiya Vidyavihar University question-paper workflow: design, review, and coordinate exam papers.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/I7Mmjgqb7jVd6vqRrB4kL3YAfQ33/social-images/social-1785243958419-SVV.webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/I7Mmjgqb7jVd6vqRrB4kL3YAfQ33/social-images/social-1785243958419-SVV.webp",
+      },
     ],
     links: [
       {

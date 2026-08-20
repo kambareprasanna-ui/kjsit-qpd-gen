@@ -216,10 +216,14 @@ function AuthPage() {
           <div className="mt-6 pt-4 border-t border-border text-[11px] text-muted-foreground text-center space-y-1">
             <p>
               <strong className="text-foreground">HOD Login:</strong> Use your designated{" "}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">hod{EMAIL_DOMAIN}</code> account.
+              <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
+                hod{EMAIL_DOMAIN}
+              </code>{" "}
+              account.
             </p>
             <p>
-              Faculty members self-register as Paper Designers. DQC Reviewer and Exam Coordinator roles are activated after HOD approval.
+              Faculty members self-register as Paper Designers. DQC Reviewer and Exam Coordinator
+              roles are activated after HOD approval.
             </p>
           </div>
         </div>

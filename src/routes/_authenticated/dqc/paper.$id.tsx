@@ -13,7 +13,10 @@ export const Route = createFileRoute("/_authenticated/dqc/paper/$id")({
   head: () => ({
     meta: [
       { title: "DQC Review — Somaiya Portal" },
-      { name: "description", content: "Review a submitted question paper with Bloom, CO, and unit analysis." },
+      {
+        name: "description",
+        content: "Review a submitted question paper with Bloom, CO, and unit analysis.",
+      },
     ],
   }),
   component: () => (
@@ -37,7 +40,9 @@ function DqcReview() {
     const { data: d } = await supabase.from("diagrams").select("*").eq("paper_id", id);
     setDiagrams(d || []);
   };
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+  }, [id]);
 
   const dmap = useMemo(() => {
     if (!paper) return {};
@@ -47,7 +52,13 @@ function DqcReview() {
     return m;
   }, [paper, diagrams]);
 
-  if (!paper) return <div className="min-h-screen"><AppHeader /><div className="p-6 text-muted-foreground">Loading…</div></div>;
+  if (!paper)
+    return (
+      <div className="min-h-screen">
+        <AppHeader />
+        <div className="p-6 text-muted-foreground">Loading…</div>
+      </div>
+    );
   const meta: PaperMeta = paper.meta;
   const set: GeneratedSet = paper.sets[paper.selected_set_index ?? 0];
   const pattern = getPattern(meta.marks);
@@ -92,24 +103,45 @@ function DqcReview() {
       <div className="max-w-6xl mx-auto p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-semibold">{meta.courseName} ({meta.courseCode})</h1>
-            <p className="text-sm text-muted-foreground">DQC Review · {meta.marks} marks · Sem {meta.semester}</p>
+            <h1 className="text-2xl font-semibold">
+              {meta.courseName} ({meta.courseCode})
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              DQC Review · {meta.marks} marks · Sem {meta.semester}
+            </p>
           </div>
           <div className="flex gap-2">
             <label className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-md text-sm hover:bg-accent cursor-pointer">
               <Signature className="w-4 h-4" /> Add Signature
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadSig(e.target.files[0])} />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && uploadSig(e.target.files[0])}
+              />
             </label>
-            <button onClick={approve} className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md text-sm hover:bg-emerald-700">
+            <button
+              onClick={approve}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md text-sm hover:bg-emerald-700"
+            >
               <CheckCircle2 className="w-4 h-4" /> Approve
             </button>
-            <button onClick={() => setRejectOpen(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-md text-sm hover:bg-destructive/90">
+            <button
+              onClick={() => setRejectOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-md text-sm hover:bg-destructive/90"
+            >
               <XCircle className="w-4 h-4" /> Not Approve
             </button>
           </div>
         </div>
 
-        <PaperRenderer meta={meta} set={set} diagrams={dmap} signatureUrl={paper.dqc_signature_url} setLabel="Selected Set" />
+        <PaperRenderer
+          meta={meta}
+          set={set}
+          diagrams={dmap}
+          signatureUrl={paper.dqc_signature_url}
+          setLabel="Selected Set"
+        />
 
         <div className="grid md:grid-cols-3 gap-4 mt-6">
           <AnalysisCard title="Bloom Analysis">
@@ -139,10 +171,25 @@ function DqcReview() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold mb-3">Reject with note</h3>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} className="w-full h-32 p-3 border border-border rounded-md bg-background text-sm" placeholder="Explain what needs to change…" />
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="w-full h-32 p-3 border border-border rounded-md bg-background text-sm"
+              placeholder="Explain what needs to change…"
+            />
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setRejectOpen(false)} className="px-4 py-2 text-sm hover:bg-accent rounded-md">Cancel</button>
-              <button onClick={reject} className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md text-sm">Send back</button>
+              <button
+                onClick={() => setRejectOpen(false)}
+                className="px-4 py-2 text-sm hover:bg-accent rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={reject}
+                className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md text-sm"
+              >
+                Send back
+              </button>
             </div>
           </div>
         </div>

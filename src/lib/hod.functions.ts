@@ -59,17 +59,22 @@ export const getHodDashboardFn = createServerFn({ method: "GET" })
     }
 
     // 1. Fetch all profiles, user_roles, papers, and notifications
-    const [
-      { data: allProfiles },
-      { data: allRoles },
-      { data: allPapers },
-      { data: allNotifs },
-    ] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id, email, name, created_at").order("created_at", { ascending: false }),
-      supabaseAdmin.from("user_roles").select("user_id, role"),
-      supabaseAdmin.from("papers").select("id, status, meta, created_by_email, created_at, dqc_note").order("created_at", { ascending: false }),
-      supabaseAdmin.from("notifications").select("id, message, read, recipient_email, created_at").order("created_at", { ascending: false }),
-    ]);
+    const [{ data: allProfiles }, { data: allRoles }, { data: allPapers }, { data: allNotifs }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("profiles")
+          .select("id, email, name, created_at")
+          .order("created_at", { ascending: false }),
+        supabaseAdmin.from("user_roles").select("user_id, role"),
+        supabaseAdmin
+          .from("papers")
+          .select("id, status, meta, created_by_email, created_at, dqc_note")
+          .order("created_at", { ascending: false }),
+        supabaseAdmin
+          .from("notifications")
+          .select("id, message, read, recipient_email, created_at")
+          .order("created_at", { ascending: false }),
+      ]);
 
     const roleMap = new Map<string, string>();
     (allRoles || []).forEach((r) => {
@@ -242,7 +247,10 @@ export const requestRoleElevationFn = createServerFn({ method: "POST" })
 
     const roleLabel = data.requestedRole === "dqc" ? "DQC Member" : "Exam Coordinator";
     const facultyName = profile.name || profile.email;
-    const reasonText = (data.reason || "Faculty submitted application for role.").replace(/[|\n]/g, " ");
+    const reasonText = (data.reason || "Faculty submitted application for role.").replace(
+      /[|\n]/g,
+      " ",
+    );
 
     // Send formatted role request to HOD
     await supabaseAdmin.from("notifications").insert({

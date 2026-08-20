@@ -8,7 +8,10 @@ export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
       { title: "Set a new password — KJSIT Question Paper Portal" },
-      { name: "description", content: "Choose a new password for your question-paper portal account." },
+      {
+        name: "description",
+        content: "Choose a new password for your question-paper portal account.",
+      },
       { property: "og:title", content: "Set a new password — KJSIT Question Paper Portal" },
       { property: "og:description", content: "Choose a new password for your portal account." },
       { property: "og:type", content: "website" },
@@ -76,8 +79,8 @@ function ResetPasswordPage() {
           <h1 className="text-2xl font-semibold text-foreground">Set a new password</h1>
           {!ready && (
             <p className="text-sm text-muted-foreground mt-2">
-              Open this page from the reset link in your email. If you arrived here directly, request a
-              new link from the sign-in page.
+              Open this page from the reset link in your email. If you arrived here directly,
+              request a new link from the sign-in page.
             </p>
           )}
           {done ? (
