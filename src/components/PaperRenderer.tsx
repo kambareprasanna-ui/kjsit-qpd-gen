@@ -1,6 +1,12 @@
 import type React from "react";
 import type { GeneratedSet } from "@/lib/paper.functions";
-import { getPattern, paperInstruction, paperTime, type PatternSlot } from "@/lib/paper-pattern";
+import {
+  getPattern,
+  paperInstruction,
+  paperTime,
+  formatBTLevel,
+  type PatternSlot,
+} from "@/lib/paper-pattern";
 import { SvvLogoSvg } from "@/components/Logo";
 
 export type PaperMeta = {
@@ -25,10 +31,10 @@ export function PaperRenderer({
   diagrams = {},
   signatureUrl,
   showAttachHint = false,
-  setLabel,
   onAttachClick,
   editable = false,
   onEditQuestion,
+  onEditQuestionField,
   onEditCO,
 }: {
   meta: PaperMeta;
@@ -36,10 +42,10 @@ export function PaperRenderer({
   diagrams?: DiagramMap;
   signatureUrl?: string | null;
   showAttachHint?: boolean;
-  setLabel?: string;
   onAttachClick?: (key: string) => void;
   editable?: boolean;
   onEditQuestion?: (key: string, text: string) => void;
+  onEditQuestionField?: (key: string, field: "text" | "co" | "bloom", value: string) => void;
   onEditCO?: (coKey: string, text: string) => void;
 }) {
   const pattern = getPattern(meta.marks);
@@ -51,22 +57,24 @@ export function PaperRenderer({
   return (
     <div className="paper-page p-10 max-w-[820px] mx-auto shadow border border-border">
       {/* Header block */}
-      <div className="flex items-center gap-4 border-b border-black pb-4 mb-4">
-        <SvvLogoSvg height={64} className="shrink-0" />
-        <div className="flex-1 text-center">
-          <div className="text-[10pt] tracking-widest">SOMAIYA VIDYAVIHAR UNIVERSITY</div>
-          <div className="text-[14pt] font-bold">K J Somaiya Institute of Technology</div>
-          <div className="text-[10pt] italic">
-            An Autonomous Institute permanently affiliated to University of Mumbai.
+      <div className="border-b border-black pb-4 mb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="shrink-0 pt-1 text-left">
+            <SvvLogoSvg height={48} align="left" />
           </div>
-          <div className="text-[11pt] mt-2">Academic Year {meta.academicYear}</div>
-          {meta.examName && (
-            <div className="text-[12pt] font-bold mt-1 tracking-wide uppercase">
-              {meta.examName}
+          <div className="flex-1 text-center pr-2">
+            <div className="text-[14pt] font-bold">K J Somaiya Institute of Technology</div>
+            <div className="text-[10pt] italic">
+              An Autonomous Institute permanently affiliated to University of Mumbai.
             </div>
-          )}
-          <div className="text-[12pt] font-bold mt-1">{dept}</div>
-          {setLabel && <div className="text-[10pt] mt-1 text-brand font-semibold">{setLabel}</div>}
+            <div className="text-[11pt] mt-1">Academic Year {meta.academicYear}</div>
+            {meta.examName && (
+              <div className="text-[12pt] font-bold mt-1 tracking-wide uppercase">
+                {meta.examName}
+              </div>
+            )}
+            <div className="text-[12pt] font-bold mt-1">{dept}</div>
+          </div>
         </div>
       </div>
 
@@ -131,33 +139,14 @@ export function PaperRenderer({
               onAttachClick={onAttachClick}
               editable={editable}
               onEditQuestion={onEditQuestion}
+              onEditQuestionField={onEditQuestionField}
             />
           ))}
         </tbody>
       </table>
 
-      {/* Course outcomes + signatures */}
+      {/* Course outcomes */}
       <CourseOutcomesFooter meta={meta} editable={editable} onEditCO={onEditCO} />
-
-      <div className="mt-8 flex justify-between items-end text-[11pt]">
-        <div>
-          <div className="border-t border-black pt-1 w-56 text-center">DQC Member</div>
-          {signatureUrl && (
-            <div className="mt-2">
-              <div className="text-xs text-gray-600">DQC Verified</div>
-              <img src={signatureUrl} alt="DQC signature" className="h-14 object-contain" />
-            </div>
-          )}
-        </div>
-        <div>
-          <div>
-            Verified By: <b>Dr. Milind Nemade</b>
-          </div>
-          <div className="border-t border-black pt-1 w-56 text-center mt-1">
-            Head of the Department
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -181,6 +170,7 @@ function RenderGroup({
   onAttachClick,
   editable,
   onEditQuestion,
+  onEditQuestionField,
 }: {
   group: QGroup;
   questions: GeneratedSet["questions"];
@@ -189,6 +179,7 @@ function RenderGroup({
   onAttachClick?: (key: string) => void;
   editable?: boolean;
   onEditQuestion?: (key: string, text: string) => void;
+  onEditQuestionField?: (key: string, field: "text" | "co" | "bloom", value: string) => void;
 }) {
   const rows: React.ReactElement[] = [];
   group.slots.forEach((slot, idx) => {
@@ -217,8 +208,16 @@ function RenderGroup({
             <div
               contentEditable
               suppressContentEditableWarning
-              onBlur={(e) => onEditQuestion?.(slot.key, e.currentTarget.textContent ?? "")}
+              onBlur={(e) => {
+                const val = e.currentTarget.textContent ?? "";
+                if (onEditQuestionField) {
+                  onEditQuestionField(slot.key, "text", val);
+                } else {
+                  onEditQuestion?.(slot.key, val);
+                }
+              }}
               className="outline-none focus:ring-2 focus:ring-brand/40 rounded px-1 py-0.5 min-h-[1.5em] bg-yellow-50 dark:bg-yellow-900/10"
+              title="Click and type to edit question statement"
             >
               {q?.text ?? ""}
             </div>
@@ -238,8 +237,42 @@ function RenderGroup({
           ) : null}
         </td>
         <td className="text-center">{slot.marks}</td>
-        <td className="text-center">{q?.co ?? ""}</td>
-        <td className="text-center">{q?.bloom ?? slot.bloom}</td>
+        <td className="text-center">
+          {editable ? (
+            <div
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={(e) => {
+                const val = e.currentTarget.textContent?.trim() ?? "";
+                onEditQuestionField?.(slot.key, "co", val);
+              }}
+              className="outline-none focus:ring-2 focus:ring-brand/40 rounded px-1 py-0.5 min-h-[1.5em] bg-yellow-50 dark:bg-yellow-900/10 font-medium"
+              title="Click and type to edit CO (e.g. CO1, CO2, CO3)"
+            >
+              {q?.co ?? ""}
+            </div>
+          ) : (
+            <div>{q?.co ?? ""}</div>
+          )}
+        </td>
+        <td className="text-center">
+          {editable ? (
+            <div
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={(e) => {
+                const val = e.currentTarget.textContent?.trim() ?? "";
+                onEditQuestionField?.(slot.key, "bloom", formatBTLevel(val) || val);
+              }}
+              className="outline-none focus:ring-2 focus:ring-brand/40 rounded px-1 py-0.5 min-h-[1.5em] bg-yellow-50 dark:bg-yellow-900/10 font-medium"
+              title="Click and type to edit BT Level (R: Remember, U: Understand, A: Apply, An: Analyze, E: Evaluate, C: Create)"
+            >
+              {formatBTLevel(q?.bloom ?? slot.bloom)}
+            </div>
+          ) : (
+            <div>{formatBTLevel(q?.bloom ?? slot.bloom)}</div>
+          )}
+        </td>
       </tr>,
     );
   });

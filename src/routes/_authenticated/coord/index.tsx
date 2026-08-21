@@ -4,7 +4,7 @@ import { Eye, FileDown, Download, Printer } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { fetchPapers, fetchDiagrams } from "@/lib/papers-db";
-import { exportPaperDocx, exportPaperPdf } from "@/lib/export";
+import { exportPaperDocx, exportPaperPdf, printPaperDocument } from "@/lib/export";
 import type { GeneratedSet } from "@/lib/paper.functions";
 
 export const Route = createFileRoute("/_authenticated/coord/")({
@@ -29,6 +29,34 @@ function CoordInbox() {
     fetchPapers({ status: "approved" }).then((data) => setPapers(data || []));
   }, []);
 
+  const handleQuickPrint = async (paper: any) => {
+    setDownloadingId(`${paper.id}-print`);
+    try {
+      const meta = paper.meta;
+      const sets: GeneratedSet[] = paper.sets || [];
+      const selectedIdx = paper.selected_set_index ?? 0;
+      const set: GeneratedSet = sets[selectedIdx] || sets[0];
+      const diagrams = await fetchDiagrams(paper.id);
+      const dmap: Record<string, string> = {};
+      for (const d of diagrams || []) {
+        if (d.set_index === selectedIdx) dmap[d.question_key] = d.image_url;
+      }
+      const fname = `${meta.courseCode}_${meta.marks}marks.pdf`;
+
+      await printPaperDocument({
+        meta,
+        set,
+        diagrams: dmap,
+        signatureUrl: paper.dqc_signature_url,
+        filename: fname,
+      });
+    } catch (e) {
+      console.error("Print failed:", e);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const handleQuickDownload = async (paper: any, kind: "pdf" | "docx") => {
     setDownloadingId(`${paper.id}-${kind}`);
     try {
@@ -41,9 +69,7 @@ function CoordInbox() {
       for (const d of diagrams || []) {
         if (d.set_index === selectedIdx) dmap[d.question_key] = d.image_url;
       }
-      const setLabel =
-        set?.setName || (selectedIdx === 0 ? "Set A" : selectedIdx === 1 ? "Set B" : "Set C");
-      const fname = `${meta.courseCode}_${setLabel.replace(/\s+/g, "_")}_${meta.marks}marks.${kind}`;
+      const fname = `${meta.courseCode}_${meta.marks}marks.${kind}`;
 
       if (kind === "pdf") {
         await exportPaperPdf(meta, set, dmap, paper.dqc_signature_url, fname);
@@ -77,12 +103,6 @@ function CoordInbox() {
         ) : (
           <div className="grid gap-3">
             {papers.map((p) => {
-              const selectedIdx = p.selected_set_index ?? 0;
-              const setObj = p.sets?.[selectedIdx] || p.sets?.[0];
-              const setLabel =
-                setObj?.setName ||
-                (selectedIdx === 0 ? "Set A" : selectedIdx === 1 ? "Set B" : "Set C");
-
               return (
                 <div
                   key={p.id}
@@ -99,9 +119,6 @@ function CoordInbox() {
                           {p.meta.examName}
                         </span>
                       )}
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-brand/10 text-brand">
-                        {setLabel}
-                      </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
                       <span>
@@ -119,6 +136,15 @@ function CoordInbox() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <button
+                      onClick={() => handleQuickPrint(p)}
+                      disabled={downloadingId === `${p.id}-print`}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 transition shadow-xs cursor-pointer"
+                      title="Print Question Paper"
+                    >
+                      <Printer className="w-4 h-4" />{" "}
+                      {downloadingId === `${p.id}-print` ? "Printing…" : "Print"}
+                    </button>
                     <button
                       onClick={() => handleQuickDownload(p, "pdf")}
                       disabled={downloadingId === `${p.id}-pdf`}
@@ -138,9 +164,10 @@ function CoordInbox() {
                     <Link
                       to="/coord/paper/$id"
                       params={{ id: p.id }}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 transition shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 border border-border bg-card rounded-md text-sm font-medium hover:bg-accent transition"
+                      title="View Question Paper"
                     >
-                      <Printer className="w-4 h-4" /> View & Print
+                      <Eye className="w-4 h-4" /> View
                     </Link>
                   </div>
                 </div>

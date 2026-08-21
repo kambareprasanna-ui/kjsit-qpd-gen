@@ -18,7 +18,13 @@ import {
 } from "docx";
 import type { GeneratedSet } from "@/lib/paper.functions";
 import type { PaperMeta, DiagramMap } from "@/components/PaperRenderer";
-import { getPattern, paperInstruction, paperTime, type PatternSlot } from "@/lib/paper-pattern";
+import {
+  getPattern,
+  paperInstruction,
+  paperTime,
+  formatBTLevel,
+  type PatternSlot,
+} from "@/lib/paper-pattern";
 
 function dataUrlToUint8(url: string): { data: Uint8Array; type: "png" | "jpg" } | null {
   const m = url.match(/^data:image\/(png|jpe?g);base64,(.+)$/);
@@ -43,6 +49,17 @@ export async function exportPaperPdf(
   const margin = 40;
   let y = margin;
 
+  // Left-hand side brand: SOMAIYA VIDYAVIHAR UNIVERSITY
+  doc.setTextColor(134, 31, 31); // #861F1F
+  doc.setFont("times", "bold");
+  doc.setFontSize(15);
+  doc.text("SOMAIYA", margin, y + 10);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.text("VIDYAVIHAR UNIVERSITY", margin, y + 20);
+
+  // Center: College Name and Exam Details
+  doc.setTextColor(0, 0, 0);
   doc.setFont("times", "bold");
   doc.setFontSize(14);
   doc.text("K J Somaiya Institute of Technology", pageW / 2, y, { align: "center" });
@@ -74,33 +91,79 @@ export async function exportPaperPdf(
     y,
     { align: "center" },
   );
-  y += 14;
+  y += 18;
 
-  const setNameHeader = set.setName || set.difficulty;
-  if (setNameHeader) {
+  // Meta Table (bordered grid matching on-screen format)
+  const metaTableW = pageW - margin * 2;
+  const metaRowH = 18;
+  const col1W = Math.round(metaTableW * 0.3);
+  const col2W = Math.round(metaTableW * 0.35);
+  const col3W = metaTableW - col1W - col2W;
+  const colLeft2W = Math.round(metaTableW * 0.65);
+  const colRight2W = metaTableW - colLeft2W;
+
+  const drawMetaCell = (
+    cellX: number,
+    cellY: number,
+    cellW: number,
+    cellH: number,
+    label: string,
+    val: string,
+  ) => {
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.8);
+    doc.rect(cellX, cellY, cellW, cellH);
+
     doc.setFont("times", "bold");
-    doc.setFontSize(11);
-    doc.text(setNameHeader.toUpperCase(), pageW / 2, y, { align: "center" });
-    y += 14;
-  }
-  y += 6;
-  doc.setDrawColor(0);
-  doc.line(margin, y, pageW - margin, y);
-  y += 12;
+    doc.setFontSize(10);
+    doc.text(label, cellX + 6, cellY + 12);
+    const lw = doc.getTextWidth(label);
+    doc.setFont("times", "normal");
+    doc.text(val, cellX + 6 + lw + 4, cellY + 12);
+  };
 
+  // Row 1: Class | Semester | Date
+  drawMetaCell(margin, y, col1W, metaRowH, "Class:", meta.className || "");
+  drawMetaCell(margin + col1W, y, col2W, metaRowH, "Semester:", meta.semester || "");
+  drawMetaCell(margin + col1W + col2W, y, col3W, metaRowH, "Date:", meta.date || "");
+  y += metaRowH;
+
+  // Row 2: Course Name | Marks
+  drawMetaCell(margin, y, colLeft2W, metaRowH, "Course Name:", meta.courseName || "");
+  drawMetaCell(margin + colLeft2W, y, colRight2W, metaRowH, "Marks:", String(meta.marks || ""));
+  y += metaRowH;
+
+  // Row 3: Course Code | Time
+  drawMetaCell(margin, y, colLeft2W, metaRowH, "Course Code:", meta.courseCode || "");
+  drawMetaCell(margin + colLeft2W, y, colRight2W, metaRowH, "Time:", paperTime(meta.marks));
+  y += metaRowH;
+
+  // Row 4: Note
+  const noteInstruction = paperInstruction(meta.marks);
+  const noteLabel = "Note: ";
+  doc.setFont("times", "bold");
   doc.setFontSize(10);
+  const noteLabelW = doc.getTextWidth(noteLabel);
+
   doc.setFont("times", "normal");
-  const metaLines = [
-    `Class: ${meta.className}     Semester: ${meta.semester}     Date: ${meta.date}`,
-    `Course Name: ${meta.courseName}     Marks: ${meta.marks}`,
-    `Course Code: ${meta.courseCode}     Time: ${paperTime(meta.marks)}`,
-    `Note: ${paperInstruction(meta.marks)}`,
-  ];
-  for (const line of metaLines) {
-    doc.text(line, margin, y);
-    y += 14;
+  const noteLines = doc.splitTextToSize(noteInstruction, metaTableW - 12 - noteLabelW);
+  const noteH = Math.max(18, noteLines.length * 12 + 6);
+
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.8);
+  doc.rect(margin, y, metaTableW, noteH);
+
+  doc.setFont("times", "bold");
+  doc.setFontSize(10);
+  doc.text(noteLabel, margin + 6, y + 12);
+
+  doc.setFont("times", "normal");
+  if (noteLines.length <= 1) {
+    doc.text(noteInstruction, margin + 6 + noteLabelW + 2, y + 12);
+  } else {
+    doc.text(noteLines, margin + 6 + noteLabelW + 2, y + 12);
   }
-  y += 4;
+  y += noteH + 10;
 
   // Table header
   const cols = [
@@ -165,7 +228,7 @@ export async function exportPaperPdf(
         q?.text ?? "",
         String(slot.marks),
         q?.co ?? "",
-        q?.bloom ?? slot.bloom,
+        formatBTLevel(q?.bloom ?? slot.bloom),
       ];
       drawRow(cells, rowH);
       if (diag) {
@@ -184,30 +247,17 @@ export async function exportPaperPdf(
   }
 
   y += 20;
-  if (y > pageH - margin - 80) {
-    doc.addPage();
-    y = margin;
-  }
-  doc.setFont("times", "normal");
-  doc.text("Verified By: Dr. Milind Nemade", pageW - margin - 200, y);
-  y += 30;
-  doc.text("DQC Member", margin, y);
-  doc.text("Head of the Department", pageW - margin - 150, y);
-  if (signatureUrl) {
-    const parsed = dataUrlToUint8(signatureUrl);
-    if (parsed) {
-      try {
-        doc.addImage(signatureUrl, parsed.type.toUpperCase(), margin, y + 6, 100, 40);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
   doc.save(filename);
 }
 
 // ---------- Word ----------
+const docxBorder = {
+  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+};
+
 function tc(
   text: string,
   opts: {
@@ -218,10 +268,27 @@ function tc(
 ) {
   return new TableCell({
     width: opts.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
+    borders: docxBorder,
     children: [
       new Paragraph({
         alignment: opts.align,
         children: [new TextRun({ text, bold: opts.bold, font: "Times New Roman", size: 22 })],
+      }),
+    ],
+  });
+}
+
+function tcMeta(label: string, val: string, opts: { width?: number; colSpan?: number } = {}) {
+  return new TableCell({
+    width: opts.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
+    columnSpan: opts.colSpan,
+    borders: docxBorder,
+    children: [
+      new Paragraph({
+        children: [
+          new TextRun({ text: label, bold: true, font: "Times New Roman", size: 22 }),
+          new TextRun({ text: ` ${val}`, font: "Times New Roman", size: 22 }),
+        ],
       }),
     ],
   });
@@ -252,120 +319,156 @@ export async function exportPaperDocx(
   const grouped = groupByQ(pattern);
 
   const header = [
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({
-          text: "K J Somaiya Institute of Technology",
-          bold: true,
-          size: 28,
-          font: "Times New Roman",
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+        top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 28, type: WidthType.PERCENTAGE },
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.LEFT,
+                  children: [
+                    new TextRun({
+                      text: "SOMAIYA",
+                      bold: true,
+                      size: 26,
+                      font: "Times New Roman",
+                      color: "861F1F",
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.LEFT,
+                  children: [
+                    new TextRun({
+                      text: "VIDYAVIHAR UNIVERSITY",
+                      bold: true,
+                      size: 13,
+                      font: "Arial",
+                      color: "861F1F",
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 72, type: WidthType.PERCENTAGE },
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+              },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: "K J Somaiya Institute of Technology",
+                      bold: true,
+                      size: 28,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: "An Autonomous Institute permanently affiliated to University of Mumbai.",
+                      italics: true,
+                      size: 20,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: `Academic Year ${meta.academicYear}`,
+                      size: 22,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                }),
+                ...(meta.examName
+                  ? [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new TextRun({
+                            text: meta.examName.toUpperCase(),
+                            bold: true,
+                            size: 24,
+                            font: "Times New Roman",
+                          }),
+                        ],
+                      }),
+                    ]
+                  : []),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text:
+                        meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE",
+                      bold: true,
+                      size: 22,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
         }),
       ],
     }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({
-          text: "An Autonomous Institute permanently affiliated to University of Mumbai.",
-          italics: true,
-          size: 20,
-          font: "Times New Roman",
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({
-          text: `Academic Year ${meta.academicYear}`,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
-    }),
-    ...(meta.examName
-      ? [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new TextRun({
-                text: meta.examName.toUpperCase(),
-                bold: true,
-                size: 24,
-                font: "Times New Roman",
-              }),
-            ],
-          }),
-        ]
-      : []),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({
-          text: meta.department || "DEPARTMENT OF ARTIFICIAL INTELLIGENCE AND DATA SCIENCE",
-          bold: true,
-          size: 22,
-          font: "Times New Roman",
-        }),
-      ],
-    }),
-    ...(set.setName || set.difficulty
-      ? [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new TextRun({
-                text: (set.setName || set.difficulty || "").toUpperCase(),
-                bold: true,
-                size: 22,
-                font: "Times New Roman",
-              }),
-            ],
-          }),
-        ]
-      : []),
     new Paragraph({ children: [new TextRun({ text: "" })] }),
   ];
 
   const metaTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: docxBorder,
     rows: [
       new TableRow({
         children: [
-          tc(`Class: ${meta.className}`),
-          tc(`Semester: ${meta.semester}`),
-          tc(`Date: ${meta.date}`, { width: 50 }),
-        ],
-      }),
-      new TableRow({
-        children: [tc(`Course Name: ${meta.courseName}`), tc(""), tc(`Marks: ${meta.marks}`)],
-      }),
-      new TableRow({
-        children: [
-          tc(`Course Code: ${meta.courseCode}`),
-          tc(""),
-          tc(`Time: ${paperTime(meta.marks)}`),
+          tcMeta("Class:", meta.className, { width: 30 }),
+          tcMeta("Semester:", meta.semester, { width: 35 }),
+          tcMeta("Date:", meta.date, { width: 35 }),
         ],
       }),
       new TableRow({
         children: [
-          new TableCell({
-            columnSpan: 3,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: `Note: ${paperInstruction(meta.marks)}`,
-                    bold: true,
-                    font: "Times New Roman",
-                    size: 22,
-                  }),
-                ],
-              }),
-            ],
-          }),
+          tcMeta("Course Name:", meta.courseName, { width: 65, colSpan: 2 }),
+          tcMeta("Marks:", String(meta.marks), { width: 35 }),
         ],
+      }),
+      new TableRow({
+        children: [
+          tcMeta("Course Code:", meta.courseCode, { width: 65, colSpan: 2 }),
+          tcMeta("Time:", paperTime(meta.marks), { width: 35 }),
+        ],
+      }),
+      new TableRow({
+        children: [tcMeta("Note:", paperInstruction(meta.marks), { width: 100, colSpan: 3 })],
       }),
     ],
   });
@@ -416,10 +519,10 @@ export async function exportPaperDocx(
           children: [
             tc(idx === 0 ? slot.qNo : ""),
             tc(slot.subQ),
-            new TableCell({ children: stmtChildren }),
+            new TableCell({ borders: docxBorder, children: stmtChildren }),
             tc(String(slot.marks), { align: AlignmentType.CENTER }),
             tc(q?.co ?? "", { align: AlignmentType.CENTER }),
-            tc(q?.bloom ?? slot.bloom, { align: AlignmentType.CENTER }),
+            tc(formatBTLevel(q?.bloom ?? slot.bloom), { align: AlignmentType.CENTER }),
           ],
         }),
       );
@@ -427,28 +530,6 @@ export async function exportPaperDocx(
   }
 
   const questionsTable = new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
-
-  const footer: Paragraph[] = [
-    new Paragraph({ children: [new TextRun({ text: "" })] }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: "Verified By: Dr. Milind Nemade", font: "Times New Roman", size: 22 }),
-      ],
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: "DQC Member                                          Head of the Department",
-          font: "Times New Roman",
-          size: 22,
-        }),
-      ],
-    }),
-  ];
-  if (signatureUrl) {
-    const p = imageCell(signatureUrl);
-    if (p) footer.push(p);
-  }
 
   const doc = new Document({
     sections: [
@@ -458,7 +539,6 @@ export async function exportPaperDocx(
           metaTable,
           new Paragraph({ children: [new TextRun({ text: "" })] }),
           questionsTable,
-          ...footer,
         ],
       },
     ],
@@ -471,6 +551,138 @@ export async function exportPaperDocx(
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export async function printPaperDocument({
+  elementId = "printable-paper-view",
+  meta,
+  set,
+  diagrams = {},
+  signatureUrl,
+  filename,
+}: {
+  elementId?: string;
+  meta: PaperMeta;
+  set: GeneratedSet;
+  diagrams?: DiagramMap;
+  signatureUrl?: string | null;
+  filename?: string;
+}) {
+  let printedSuccessfully = false;
+
+  // 1. Try iframe-based print if the rendered DOM element exists
+  const targetEl = document.getElementById(elementId);
+  if (targetEl) {
+    try {
+      const printIframe = document.createElement("iframe");
+      printIframe.style.position = "fixed";
+      printIframe.style.right = "0";
+      printIframe.style.bottom = "0";
+      printIframe.style.width = "0";
+      printIframe.style.height = "0";
+      printIframe.style.border = "0";
+      printIframe.style.visibility = "hidden";
+      document.body.appendChild(printIframe);
+
+      const doc = printIframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${meta.courseName || "Question Paper"}</title>
+              <style>
+                @page { size: A4 portrait; margin: 8mm 10mm; }
+                body {
+                  font-family: "Times New Roman", Times, serif;
+                  color: #000;
+                  background: #fff;
+                  margin: 0;
+                  padding: 0;
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                }
+                .paper-page {
+                  width: 100%;
+                  max-width: 100%;
+                  box-shadow: none !important;
+                  border: none !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                }
+                table {
+                  border-collapse: collapse;
+                  width: 100%;
+                }
+                th, td {
+                  border: 1px solid #000;
+                  padding: 4px 6px;
+                  vertical-align: top;
+                  font-size: 11pt;
+                }
+                th {
+                  background: #f2f2f2;
+                  font-weight: bold;
+                }
+                .no-print {
+                  display: none !important;
+                }
+                tr {
+                  page-break-inside: avoid;
+                  break-inside: avoid;
+                }
+              </style>
+            </head>
+            <body>
+              ${targetEl.innerHTML}
+            </body>
+          </html>
+        `);
+        doc.close();
+
+        await new Promise((r) => setTimeout(r, 250));
+        try {
+          printIframe.contentWindow?.focus();
+          printIframe.contentWindow?.print();
+          printedSuccessfully = true;
+        } catch (printErr) {
+          console.warn("Iframe print error:", printErr);
+        }
+
+        setTimeout(() => {
+          try {
+            document.body.removeChild(printIframe);
+          } catch (e) {
+            console.debug("Iframe cleanup error:", e);
+          }
+        }, 3000);
+      }
+    } catch (err) {
+      console.warn("Iframe printing encountered an issue:", err);
+    }
+  }
+
+  // 2. Direct browser print attempt if iframe wasn't used or had issues
+  if (!printedSuccessfully) {
+    try {
+      window.print();
+      printedSuccessfully = true;
+    } catch (err) {
+      console.warn("Direct window.print failed:", err);
+    }
+  }
+
+  // 3. Always provide download fallback for iframe sandboxes
+  if (!printedSuccessfully || window.self !== window.top) {
+    await exportPaperPdf(
+      meta,
+      set,
+      diagrams,
+      signatureUrl,
+      filename || `${meta.courseCode}_${meta.marks}marks.pdf`,
+    );
+  }
 }
 
 function groupByQ(pattern: PatternSlot[]) {

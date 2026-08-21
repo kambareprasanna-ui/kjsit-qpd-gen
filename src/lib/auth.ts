@@ -577,6 +577,39 @@ export function useUser(): AppUser | null {
   return user;
 }
 
+export async function changeUserPassword(params: {
+  email: string;
+  currentPassword?: string;
+  newPassword: string;
+}): Promise<void> {
+  const normEmail = params.email.trim().toLowerCase();
+  if (!params.newPassword || params.newPassword.length < 8) {
+    throw new Error("New password must be at least 8 characters long.");
+  }
+
+  const users = getAllUsers();
+  const user = users.find((u) => u.email.toLowerCase() === normEmail);
+
+  if (!user) {
+    throw new Error("User account not found.");
+  }
+
+  if (user.password && params.currentPassword !== undefined && params.currentPassword !== "") {
+    if (user.password !== params.currentPassword) {
+      throw new Error("Current password is incorrect.");
+    }
+  }
+
+  user.password = params.newPassword;
+  saveUsers(users);
+
+  try {
+    await supabase.auth.updateUser({ password: params.newPassword });
+  } catch {
+    // Ignore supabase error
+  }
+}
+
 export async function signOut(): Promise<void> {
   try {
     await supabase.auth.signOut();

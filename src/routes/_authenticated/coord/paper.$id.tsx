@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
 import { fetchPaperById, fetchDiagrams } from "@/lib/papers-db";
-import { exportPaperDocx, exportPaperPdf } from "@/lib/export";
+import { exportPaperDocx, exportPaperPdf, printPaperDocument } from "@/lib/export";
 import type { GeneratedSet } from "@/lib/paper.functions";
 
 export const Route = createFileRoute("/_authenticated/coord/paper/$id")({
@@ -26,26 +26,18 @@ function CoordView() {
   const { id } = Route.useParams();
   const [paper, setPaper] = useState<any>(null);
   const [diagrams, setDiagrams] = useState<any[]>([]);
-  const [activeSetIdx, setActiveSetIdx] = useState<number | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     fetchPaperById(id).then((data) => {
       setPaper(data);
-      if (activeSetIdx === null && data?.selected_set_index != null) {
-        setActiveSetIdx(data.selected_set_index);
-      }
     });
     fetchDiagrams(id).then((data) => setDiagrams(data || []));
   }, [id]);
 
   const sets: GeneratedSet[] = paper?.sets || [];
-  const currentSetIdx = activeSetIdx ?? paper?.selected_set_index ?? 0;
+  const currentSetIdx = paper?.selected_set_index ?? 0;
   const set: GeneratedSet = sets[currentSetIdx] || sets[0];
-
-  const setLabels = ["Set A", "Set B", "Set C"];
-  const getSetLabel = (s: any, i: number) =>
-    s?.setName || setLabels[i] || `Set ${String.fromCharCode(65 + i)}`;
 
   const dmap = useMemo(() => {
     if (!paper) return {};
@@ -64,8 +56,7 @@ function CoordView() {
   const meta: PaperMeta = paper.meta;
 
   const doExport = async (kind: "pdf" | "docx") => {
-    const setNameStr = getSetLabel(set, currentSetIdx).replace(/\s+/g, "_");
-    const fname = `${meta.courseCode}_${setNameStr}_${meta.marks}marks.${kind}`;
+    const fname = `${meta.courseCode}_${meta.marks}marks.${kind}`;
     if (kind === "pdf") await exportPaperPdf(meta, set, dmap, paper.dqc_signature_url, fname);
     else await exportPaperDocx(meta, set, dmap, paper.dqc_signature_url, fname);
   };
@@ -73,16 +64,19 @@ function CoordView() {
   const handlePrint = async () => {
     setIsPrinting(true);
     try {
-      // Direct browser window print (styled by @media print CSS)
-      window.print();
+      await printPaperDocument({
+        elementId: "printable-paper-view",
+        meta,
+        set,
+        diagrams: dmap,
+        signatureUrl: paper.dqc_signature_url,
+        filename: `${meta.courseCode}_${meta.marks}marks.pdf`,
+      });
     } catch (err) {
-      console.warn(
-        "Direct print failed or restricted by environment sandbox. Exporting PDF as fallback:",
-        err,
-      );
+      console.warn("Print trigger error:", err);
       await doExport("pdf");
     } finally {
-      setTimeout(() => setIsPrinting(false), 400);
+      setTimeout(() => setIsPrinting(false), 500);
     }
   };
 
@@ -96,8 +90,7 @@ function CoordView() {
               {meta.courseName} ({meta.courseCode})
             </h1>
             <p className="text-sm text-muted-foreground">
-              Approved · {meta.marks} marks · Sem {meta.semester} ·{" "}
-              {getSetLabel(set, currentSetIdx)}
+              Approved · {meta.marks} marks · Sem {meta.semester}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -123,37 +116,12 @@ function CoordView() {
           </div>
         </div>
 
-        {/* Set Switcher Tabs */}
-        {sets.length > 1 && (
-          <div className="flex gap-2 mb-4 no-print">
-            {sets.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveSetIdx(i)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                  currentSetIdx === i
-                    ? "bg-brand text-brand-foreground shadow-sm"
-                    : "bg-card border border-border hover:bg-accent"
-                }`}
-              >
-                {getSetLabel(s, i)}
-                {paper.selected_set_index === i && (
-                  <span className="ml-2 text-xs bg-white/20 px-1.5 py-0.5 rounded text-white font-normal">
-                    Approved Choice
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-
         <div id="printable-paper-view">
           <PaperRenderer
             meta={meta}
             set={set}
             diagrams={dmap}
             signatureUrl={paper.dqc_signature_url}
-            setLabel={`${getSetLabel(set, currentSetIdx)}${paper.selected_set_index === currentSetIdx ? " · Approved Set" : ""}`}
           />
         </div>
       </div>

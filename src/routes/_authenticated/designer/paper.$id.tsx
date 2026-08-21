@@ -136,12 +136,35 @@ function PaperEditor() {
   const selectedIdx = paper.selected_set_index;
 
   const applyEdit = (key: string, text: string) => {
+    applyEditField(key, "text", text);
+  };
+
+  const applyEditField = (key: string, field: "text" | "co" | "bloom", value: string) => {
     setEditedSets((prev) => {
       const base: GeneratedSet[] = prev ?? JSON.parse(JSON.stringify(paper.sets ?? []));
       const s = base[activeSetIdx];
       if (!s) return base;
-      const q = s.questions.find((x) => x.key === key);
-      if (q) q.text = text;
+      let q = s.questions.find((x) => x.key === key);
+      if (!q) {
+        const slot = pattern.find((p) => p.key === key);
+        if (slot) {
+          q = {
+            key,
+            text: "",
+            marks: slot.marks,
+            bloom: slot.bloom,
+            co: slot.co,
+            module: "",
+            needsDiagram: false,
+          };
+          s.questions.push(q);
+        }
+      }
+      if (q) {
+        if (field === "text") q.text = value;
+        else if (field === "co") q.co = value;
+        else if (field === "bloom") q.bloom = value as any;
+      }
       return [...base];
     });
   };
@@ -279,9 +302,6 @@ function PaperEditor() {
               </span>
               <span>·</span>
               <span className="font-medium capitalize">{paper.status.replace(/_/g, " ")}</span>
-              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-900 border border-purple-200">
-                Routed to: {meta.className || "SY"} DQC Committee
-              </span>
             </div>
             {paper.status === "not_approved" && paper.dqc_note && (
               <div className="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
@@ -307,19 +327,14 @@ function PaperEditor() {
               </>
             )}
             {!readOnly && (
-              <div className="flex flex-col items-end">
-                <button
-                  onClick={sendToDqc}
-                  disabled={selectedIdx == null || saving}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-purple-700 text-white rounded-md text-sm font-semibold hover:bg-purple-800 transition disabled:opacity-50 shadow-2xs"
-                  title={`Send finalized set to ${meta.className || "SY"} DQC committee`}
-                >
-                  <Send className="w-4 h-4" /> Send to {meta.className || "SY"} DQC
-                </button>
-                <span className="text-[10px] text-purple-900 font-medium mt-0.5">
-                  Sends to {meta.className || "SY"} DQC Reviewer
-                </span>
-              </div>
+              <button
+                onClick={sendToDqc}
+                disabled={selectedIdx == null || saving}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-semibold hover:bg-brand/90 active:bg-brand/95 transition disabled:opacity-50 shadow-xs cursor-pointer"
+                title={`Send finalized set to DQC committee`}
+              >
+                <Send className="w-4 h-4" /> Send to DQC
+              </button>
             )}
           </div>
         </div>
@@ -397,7 +412,8 @@ function PaperEditor() {
                   <X className="w-4 h-4" /> Cancel
                 </button>
                 <span className="self-center text-xs text-muted-foreground">
-                  Click any question text or Course Outcome to edit in-place. Save to persist.
+                  Click any question text, CO, BT Level, or Course Outcome to edit in-place. Save to
+                  persist.
                 </span>
               </>
             )}
@@ -409,13 +425,13 @@ function PaperEditor() {
           set={activeSet}
           diagrams={diagramMap}
           showAttachHint={!readOnly && !editing}
-          setLabel={`${getSetLabel(activeSet, activeSetIdx)}${selectedIdx === activeSetIdx ? " · Selected" : ""}${editing ? " · Editing" : ""}`}
           onAttachClick={(k) => {
             setAttachKey(k);
             setAttachOpen(true);
           }}
           editable={editing}
           onEditQuestion={applyEdit}
+          onEditQuestionField={applyEditField}
           onEditCO={applyEditCO}
         />
       </div>

@@ -13,6 +13,7 @@ import {
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
+import { formatBTLevel } from "@/lib/paper-pattern";
 import { fetchPaperById, fetchDiagrams, updatePaperRecord } from "@/lib/papers-db";
 import { fileToDataUrl } from "@/lib/parse-file";
 import { useUser, type DqcYear } from "@/lib/auth";
@@ -149,10 +150,27 @@ function DqcReview() {
   };
 
   // Analysis for the single selected set
-  const bloomCounts: Record<string, number> = { Remember: 0, Understand: 0, Apply: 0 };
+  const bloomCounts: Record<string, number> = {
+    "Remember (R)": 0,
+    "Understand (U)": 0,
+    "Apply (A)": 0,
+    "Analyze (An)": 0,
+    "Evaluate (E)": 0,
+    "Create (C)": 0,
+  };
+  const btNameMap: Record<string, string> = {
+    R: "Remember (R)",
+    U: "Understand (U)",
+    A: "Apply (A)",
+    An: "Analyze (An)",
+    E: "Evaluate (E)",
+    C: "Create (C)",
+  };
   for (const q of set.questions || []) {
     if (q.bloom) {
-      bloomCounts[q.bloom] = (bloomCounts[q.bloom] || 0) + 1;
+      const code = formatBTLevel(q.bloom);
+      const label = btNameMap[code] || q.bloom;
+      bloomCounts[label] = (bloomCounts[label] || 0) + 1;
     }
   }
 
@@ -253,9 +271,11 @@ function DqcReview() {
         {/* Analytics for the selected set */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <AnalysisCard title="Bloom's Taxonomy Distribution">
-            {Object.entries(bloomCounts).map(([k, v]) => (
-              <BarRow key={k} label={k} value={v} max={set.questions?.length || 1} />
-            ))}
+            {Object.entries(bloomCounts)
+              .filter(([, v]) => v > 0)
+              .map(([k, v]) => (
+                <BarRow key={k} label={k} value={v} max={set.questions?.length || 1} />
+              ))}
           </AnalysisCard>
 
           <AnalysisCard title="Course Outcome (CO) Mapping">

@@ -4,7 +4,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { fetchPapers, type PaperRecord } from "@/lib/papers-db";
 import { useUser, type DqcYear } from "@/lib/auth";
-import { CheckCircle2, ChevronRight, User, Filter, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ChevronRight, User, Filter } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dqc/")({
   head: () => ({
@@ -87,23 +87,6 @@ function DqcInbox() {
                 ? `${reviewerYear} paper pending`
                 : `${reviewerYear} papers pending`}
             </span>
-          </div>
-        </div>
-
-        {/* Mapped Year Guidance Banner */}
-        <div className="mb-6 p-4 rounded-xl bg-purple-50/70 border border-purple-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-purple-950">
-          <div className="flex items-start gap-2.5">
-            <ShieldCheck className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold">Assigned Committee: {reviewerYear} DQC</span>
-              <p className="text-purple-800 text-[11px] mt-0.5">
-                Only question papers mapped to <b>Class / Year: {reviewerYear}</b> are visible to
-                your account.
-              </p>
-            </div>
-          </div>
-          <div className="text-[11px] font-semibold text-purple-800 shrink-0 bg-white/80 px-2.5 py-1 rounded border border-purple-200">
-            Reviewer: {user?.name || user?.email}
           </div>
         </div>
 

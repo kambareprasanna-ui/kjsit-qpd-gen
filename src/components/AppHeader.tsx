@@ -8,9 +8,11 @@ import {
   Users,
   CheckCircle,
   Clock,
+  KeyRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "./Logo";
+import { ChangePasswordModal } from "./ChangePasswordModal";
 import {
   roleHome,
   roleDisplayName,
@@ -29,6 +31,7 @@ export function AppHeader() {
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -232,6 +235,19 @@ export function AppHeader() {
 
                 <div className="border-t border-border my-1" />
                 <button
+                  id="open-change-password-btn"
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setChangePasswordOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-md text-sm text-foreground hover:bg-accent flex items-center gap-2 font-medium transition cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4 text-muted-foreground" /> Change password
+                </button>
+
+                <div className="border-t border-border my-1" />
+                <button
                   onClick={async () => {
                     setMenuOpen(false);
                     await signOut();
@@ -246,6 +262,13 @@ export function AppHeader() {
           </div>
         </div>
       </div>
+
+      {/* Change Password Modal accessible across Faculty, DQC, Exam Coordinator, and HOD logins */}
+      <ChangePasswordModal
+        user={user}
+        isOpen={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </header>
   );
 }

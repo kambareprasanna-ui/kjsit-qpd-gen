@@ -1,4 +1,26 @@
-export type Bloom = "Remember" | "Understand" | "Apply";
+export type Bloom = "Remember" | "Understand" | "Apply" | "Analyze" | "Evaluate" | "Create";
+
+export const BT_LEVEL_MAP: Record<string, string> = {
+  Remember: "R",
+  Understand: "U",
+  Apply: "A",
+  Analyze: "An",
+  Evaluate: "E",
+  Create: "C",
+};
+
+export function formatBTLevel(bloom?: string | null): string {
+  if (!bloom) return "";
+  const b = bloom.trim();
+  const lower = b.toLowerCase();
+  if (lower === "r" || lower.startsWith("rememb")) return "R";
+  if (lower === "u" || lower.startsWith("under")) return "U";
+  if (lower === "a" || lower.startsWith("appl")) return "A";
+  if (lower === "an" || lower.startsWith("analy") || lower.startsWith("anayl")) return "An";
+  if (lower === "e" || lower.startsWith("eval")) return "E";
+  if (lower === "c" || lower.startsWith("creat")) return "C";
+  return b;
+}
 
 export type PatternSlot = {
   key: string; // e.g. Q1a)
