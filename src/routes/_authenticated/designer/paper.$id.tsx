@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
@@ -10,16 +10,24 @@ import {
   Send,
   Sparkles,
   X,
+  Lock,
+  ArrowLeft,
 } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchPaperById,
+  fetchDiagrams,
+  updatePaperRecord,
+  saveDiagramRecord,
+} from "@/lib/papers-db";
 import { fileToDataUrl } from "@/lib/parse-file";
 import { exportPaperDocx, exportPaperPdf } from "@/lib/export";
 import { getPattern } from "@/lib/paper-pattern";
 import { reframeQuestionFn } from "@/lib/reframe.functions";
 import type { GeneratedSet } from "@/lib/paper.functions";
+import { useUser } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
   head: () => ({
@@ -32,7 +40,7 @@ export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
     ],
   }),
   component: () => (
-    <RoleGuard role={["designer", "hod"]}>
+    <RoleGuard role="designer">
       <PaperEditor />
     </RoleGuard>
   ),
@@ -41,6 +49,7 @@ export const Route = createFileRoute("/_authenticated/designer/paper/$id")({
 function PaperEditor() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const user = useUser();
   const [paper, setPaper] = useState<any>(null);
   const [diagrams, setDiagrams] = useState<any[]>([]);
   const [activeSetIdx, setActiveSetIdx] = useState(0);
@@ -57,10 +66,10 @@ function PaperEditor() {
   const [reframeErr, setReframeErr] = useState("");
 
   const load = async () => {
-    const { data } = await supabase.from("papers").select("*").eq("id", id).maybeSingle();
+    const data = await fetchPaperById(id);
     setPaper(data);
     if (data?.selected_set_index != null) setActiveSetIdx(data.selected_set_index);
-    const { data: d } = await supabase.from("diagrams").select("*").eq("paper_id", id);
+    const d = await fetchDiagrams(id);
     setDiagrams(d || []);
   };
 
@@ -83,6 +92,42 @@ function PaperEditor() {
         <div className="p-6 text-muted-foreground">Loading…</div>
       </div>
     );
+
+  if (
+    paper.created_by_email &&
+    user?.email &&
+    paper.created_by_email.toLowerCase() !== user.email.toLowerCase() &&
+    user.role !== "hod"
+  ) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="max-w-2xl mx-auto p-6 mt-12">
+          <div className="bg-card border border-border rounded-xl p-8 text-center space-y-4 shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground">Private Faculty Workspace</h1>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              This question paper was created by another faculty member (
+              <span className="font-mono font-medium text-foreground">
+                {paper.created_by_email}
+              </span>
+              ). Each faculty member has a private workspace for their own question papers.
+            </p>
+            <div className="pt-4">
+              <Link
+                to="/designer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-lg text-sm font-semibold hover:bg-brand/90 transition shadow-2xs"
+              >
+                <ArrowLeft className="w-4 h-4" /> Return to My Faculty Dashboard
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const meta: PaperMeta = editedMeta ?? paper.meta;
   const sets: GeneratedSet[] = editedSets ?? paper.sets ?? [];
@@ -119,7 +164,7 @@ function PaperEditor() {
     const updatePayload: any = {};
     if (editedSets) updatePayload.sets = editedSets;
     if (editedMeta) updatePayload.meta = editedMeta;
-    await supabase.from("papers").update(updatePayload).eq("id", id);
+    await updatePaperRecord(id, updatePayload);
     setSaving(false);
     setEditing(false);
     setEditedSets(null);
@@ -157,7 +202,7 @@ function PaperEditor() {
     if (!q) return;
     q.text = reframeText.trim();
     setSaving(true);
-    await supabase.from("papers").update({ sets: base }).eq("id", id);
+    await updatePaperRecord(id, { sets: base });
     setSaving(false);
     setEditedSets(null);
     setReframeOpen(false);
@@ -168,19 +213,21 @@ function PaperEditor() {
 
   const finalizeSet = async (idx: number) => {
     setSaving(true);
-    await supabase.from("papers").update({ selected_set_index: idx }).eq("id", id);
+    await updatePaperRecord(id, { selected_set_index: idx });
     setSaving(false);
     await load();
   };
 
   const sendToDqc = async () => {
     if (selectedIdx == null) return alert("Please finalize a set first.");
+    const targetTier = meta.className || "SY";
     setSaving(true);
-    await supabase.from("papers").update({ status: "sent_to_dqc" }).eq("id", id);
-    await supabase.from("notifications").insert({
-      recipient_email: "dqc@somaiya.edu",
-      paper_id: id,
-      message: `New paper for review: ${meta.courseName} (${meta.courseCode})`,
+    await updatePaperRecord(id, {
+      status: "sent_to_dqc",
+      meta: {
+        ...paper.meta,
+        targetDqcYear: targetTier,
+      },
     });
     setSaving(false);
     navigate({ to: "/designer", search: { tab: "sent_to_dqc" } });
@@ -188,29 +235,22 @@ function PaperEditor() {
 
   const uploadDiagram = async (file: File) => {
     const url = await fileToDataUrl(file);
-    await supabase
-      .from("diagrams")
-      .upsert(
-        { paper_id: id, set_index: activeSetIdx, question_key: attachKey, image_url: url },
-        { onConflict: "paper_id,set_index,question_key" as any },
-      );
-    // Since we don't have a unique constraint, delete existing then insert
-    await supabase
-      .from("diagrams")
-      .delete()
-      .eq("paper_id", id)
-      .eq("set_index", activeSetIdx)
-      .eq("question_key", attachKey);
-    await supabase
-      .from("diagrams")
-      .insert({ paper_id: id, set_index: activeSetIdx, question_key: attachKey, image_url: url });
+    await saveDiagramRecord({
+      paper_id: id,
+      set_index: activeSetIdx,
+      question_key: attachKey,
+      image_url: url,
+    });
     setAttachOpen(false);
     setAttachKey("");
     await load();
   };
 
   const activeSet = sets[activeSetIdx];
-  const setLabels = ["Easy Set", "Medium Set", "Hard Set"];
+  const setLabels = ["Set A", "Set B", "Set C"];
+
+  const getSetLabel = (s: any, i: number) =>
+    s?.setName || setLabels[i] || `Set ${String.fromCharCode(65 + i)}`;
 
   const doExport = async (kind: "pdf" | "docx") => {
     const set = sets[selectedIdx ?? activeSetIdx];
@@ -227,21 +267,29 @@ function PaperEditor() {
       <AppHeader />
       <div className="max-w-6xl mx-auto p-6">
         <div className="flex items-center justify-between mb-4">
-          <div>
+          <div className="space-y-1">
             <h1 className="text-2xl font-semibold">
               {meta.courseName} ({meta.courseCode})
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {meta.marks} marks · {meta.className} Sem {meta.semester} · Status:{" "}
-              <span className="font-medium">{paper.status.replace(/_/g, " ")}</span>
-            </p>
+            <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
+              <span>{meta.marks} marks</span>
+              <span>·</span>
+              <span>
+                {meta.className} Sem {meta.semester}
+              </span>
+              <span>·</span>
+              <span className="font-medium capitalize">{paper.status.replace(/_/g, " ")}</span>
+              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-900 border border-purple-200">
+                Routed to: {meta.className || "SY"} DQC Committee
+              </span>
+            </div>
             {paper.status === "not_approved" && paper.dqc_note && (
               <div className="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
                 <b>DQC feedback:</b> {paper.dqc_note}
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             {selectedIdx != null && (
               <>
                 <button
@@ -259,29 +307,35 @@ function PaperEditor() {
               </>
             )}
             {!readOnly && (
-              <button
-                onClick={sendToDqc}
-                disabled={selectedIdx == null || saving}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-brand-foreground rounded-md text-sm font-medium hover:bg-brand/90 transition disabled:opacity-50"
-              >
-                <Send className="w-4 h-4" /> Send to DQC
-              </button>
+              <div className="flex flex-col items-end">
+                <button
+                  onClick={sendToDqc}
+                  disabled={selectedIdx == null || saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-purple-700 text-white rounded-md text-sm font-semibold hover:bg-purple-800 transition disabled:opacity-50 shadow-2xs"
+                  title={`Send finalized set to ${meta.className || "SY"} DQC committee`}
+                >
+                  <Send className="w-4 h-4" /> Send to {meta.className || "SY"} DQC
+                </button>
+                <span className="text-[10px] text-purple-900 font-medium mt-0.5">
+                  Sends to {meta.className || "SY"} DQC Reviewer
+                </span>
+              </div>
             )}
           </div>
         </div>
 
         <div className="flex gap-2 mb-4">
-          {sets.map((_, i) => (
+          {sets.map((s, i) => (
             <button
               key={i}
               onClick={() => setActiveSetIdx(i)}
-              className={`px-4 py-2 rounded-md text-sm transition ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
                 activeSetIdx === i
-                  ? "bg-brand text-brand-foreground"
+                  ? "bg-brand text-brand-foreground shadow-sm"
                   : "bg-card border border-border hover:bg-accent"
               }`}
             >
-              {setLabels[i]}
+              {getSetLabel(s, i)}
               {selectedIdx === i && <CheckCircle2 className="w-4 h-4 inline ml-2" />}
             </button>
           ))}
@@ -295,7 +349,9 @@ function PaperEditor() {
               className="inline-flex items-center gap-2 px-4 py-2 border border-brand text-brand rounded-md text-sm hover:bg-brand-muted transition disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" />{" "}
-              {selectedIdx === activeSetIdx ? "This is the selected set" : "Finalize this set"}
+              {selectedIdx === activeSetIdx
+                ? `${getSetLabel(activeSet, activeSetIdx)} is selected`
+                : `Finalize ${getSetLabel(activeSet, activeSetIdx)}`}
             </button>
             <button
               onClick={() => setAttachOpen(true)}
@@ -353,7 +409,7 @@ function PaperEditor() {
           set={activeSet}
           diagrams={diagramMap}
           showAttachHint={!readOnly && !editing}
-          setLabel={`${setLabels[activeSetIdx]}${selectedIdx === activeSetIdx ? " · Selected" : ""}${editing ? " · Editing" : ""}`}
+          setLabel={`${getSetLabel(activeSet, activeSetIdx)}${selectedIdx === activeSetIdx ? " · Selected" : ""}${editing ? " · Editing" : ""}`}
           onAttachClick={(k) => {
             setAttachKey(k);
             setAttachOpen(true);

@@ -6,7 +6,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { extractText } from "@/lib/parse-file";
 import { generatePaperFn, extractCOsFromSyllabusText } from "@/lib/paper.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { createPaper } from "@/lib/papers-db";
 import { useUser } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/designer/new")({
@@ -96,19 +96,21 @@ function NewPaper() {
       ...directRegexCOs,
     };
 
-    const { data, error: dbErr } = await supabase
-      .from("papers")
-      .insert({
-        status: "draft",
-        meta: { ...form, courseOutcomes: finalCOs },
-        sets: result.sets,
-        created_by_role: "designer",
-        created_by_email: user?.email ?? null,
-      })
-      .select()
-      .single();
-    if (dbErr) throw dbErr;
-    navigate({ to: "/designer/paper/$id", params: { id: data.id } });
+    const created = await createPaper({
+      status: "draft",
+      meta: {
+        ...form,
+        targetDqcYear: form.className || "SY",
+        courseOutcomes: finalCOs,
+        designerName: user?.name || user?.email || "Faculty Member",
+        designerEmail: user?.email || null,
+        department: user?.department || "Information Technology",
+      },
+      sets: result.sets,
+      created_by_role: "designer",
+      created_by_email: user?.email ?? null,
+    });
+    navigate({ to: "/designer/paper/$id", params: { id: created.id } });
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -226,11 +228,18 @@ function NewPaper() {
                 onChange={(e) => setForm({ ...form, className: e.target.value })}
                 className={input}
               >
-                <option>FY</option>
-                <option>SY</option>
-                <option>TY</option>
-                <option>LY</option>
+                <option value="FY">FY (First Year)</option>
+                <option value="SY">SY (Second Year)</option>
+                <option value="TY">TY (Third Year)</option>
+                <option value="LY">LY (Final Year)</option>
               </select>
+              <p className="text-[11px] text-purple-700 font-semibold mt-1 flex items-center gap-1">
+                <span>↳ Mapped to:</span>
+                <span className="px-1.5 py-0.2 bg-purple-100 border border-purple-200 rounded text-purple-900 font-bold">
+                  {form.className} DQC
+                </span>
+                <span>Reviewer Committee</span>
+              </p>
             </Field>
             <Field label="Semester">
               <select

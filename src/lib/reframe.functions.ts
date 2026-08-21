@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateContentWithRetry } from "./gemini.server";
 
 const ReframeInput = z.object({
@@ -11,15 +10,8 @@ const ReframeInput = z.object({
 });
 
 export const reframeQuestionFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ReframeInput.parse(d))
-  .handler(async ({ data, context }): Promise<{ text: string }> => {
-    const { data: isFaculty } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "designer",
-    });
-    if (!isFaculty) throw new Error("Only faculty can reframe questions.");
-
+  .handler(async ({ data }): Promise<{ text: string }> => {
     const VERBS: Record<string, string[]> = {
       Remember: [
         "choose",

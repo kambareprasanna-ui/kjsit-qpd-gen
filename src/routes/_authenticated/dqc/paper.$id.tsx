@@ -1,12 +1,21 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, XCircle, Signature } from "lucide-react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import {
+  CheckCircle2,
+  XCircle,
+  Signature,
+  ArrowLeft,
+  User,
+  Calendar,
+  Layers,
+  ShieldAlert,
+} from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppHeader } from "@/components/AppHeader";
 import { PaperRenderer, type PaperMeta } from "@/components/PaperRenderer";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchPaperById, fetchDiagrams, updatePaperRecord } from "@/lib/papers-db";
 import { fileToDataUrl } from "@/lib/parse-file";
-import { getPattern } from "@/lib/paper-pattern";
+import { useUser, type DqcYear } from "@/lib/auth";
 import type { GeneratedSet } from "@/lib/paper.functions";
 
 export const Route = createFileRoute("/_authenticated/dqc/paper/$id")({
@@ -20,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/dqc/paper/$id")({
     ],
   }),
   component: () => (
-    <RoleGuard role={["dqc", "hod"]}>
+    <RoleGuard role="dqc">
       <DqcReview />
     </RoleGuard>
   ),
@@ -29,166 +38,286 @@ export const Route = createFileRoute("/_authenticated/dqc/paper/$id")({
 function DqcReview() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const user = useUser();
   const [paper, setPaper] = useState<any>(null);
   const [diagrams, setDiagrams] = useState<any[]>([]);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [note, setNote] = useState("");
+  const [processing, setProcessing] = useState(false);
+
+  const reviewerYear: DqcYear = user?.dqcYear || "SY";
 
   const load = async () => {
-    const { data } = await supabase.from("papers").select("*").eq("id", id).maybeSingle();
+    const data = await fetchPaperById(id);
     setPaper(data);
-    const { data: d } = await supabase.from("diagrams").select("*").eq("paper_id", id);
+    const d = await fetchDiagrams(id);
     setDiagrams(d || []);
   };
+
   useEffect(() => {
     load();
   }, [id]);
 
+  const sets: GeneratedSet[] = paper?.sets || [];
+  // Strictly display only the set chosen and finalized by the faculty
+  const selectedSetIdx = paper?.selected_set_index ?? 0;
+  const set: GeneratedSet | undefined = sets[selectedSetIdx] || sets[0];
+
+  const setLabels = ["Set A", "Set B", "Set C"];
+  const getSetLabel = (s: any, i: number) =>
+    s?.setName || setLabels[i] || `Set ${String.fromCharCode(65 + i)}`;
+
   const dmap = useMemo(() => {
     if (!paper) return {};
-    const idx = paper.selected_set_index ?? 0;
     const m: Record<string, string> = {};
-    for (const d of diagrams) if (d.set_index === idx) m[d.question_key] = d.image_url;
+    for (const d of diagrams) {
+      if (d.set_index === selectedSetIdx) {
+        m[d.question_key] = d.image_url;
+      }
+    }
     return m;
-  }, [paper, diagrams]);
+  }, [paper, diagrams, selectedSetIdx]);
 
-  if (!paper)
+  if (!paper || !set) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-background">
         <AppHeader />
-        <div className="p-6 text-muted-foreground">Loading…</div>
+        <div className="max-w-4xl mx-auto p-8 text-center text-muted-foreground">
+          Loading question paper details…
+        </div>
       </div>
     );
+  }
+
   const meta: PaperMeta = paper.meta;
-  const set: GeneratedSet = paper.sets[paper.selected_set_index ?? 0];
-  const pattern = getPattern(meta.marks);
+  const paperDqcYear = meta.targetDqcYear || meta.className || "SY";
+
+  // Strict year authorization check: SY DQC can only view SY papers, TY only TY, LY only LY
+  if (paperDqcYear !== reviewerYear) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <div className="max-w-xl mx-auto mt-16 p-8 bg-card border border-destructive/30 rounded-2xl text-center shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground">Access Restricted</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            You are signed in as an <b>{reviewerYear} DQC Reviewer</b>. This question paper is
+            designated for the <b>{paperDqcYear} DQC Committee</b> and cannot be accessed from your
+            account.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Link
+              to="/dqc"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-800 text-white text-sm font-semibold transition"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Return to {reviewerYear} DQC Inbox
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const approve = async () => {
-    await supabase.from("papers").update({ status: "approved" }).eq("id", id);
-    await supabase.from("notifications").insert({
-      recipient_email: "examcoord@somaiya.edu",
-      paper_id: id,
-      message: `Paper approved and ready for print: ${meta.courseName} (${meta.courseCode})`,
+    setProcessing(true);
+    await updatePaperRecord(id, {
+      status: "approved",
+      dqc_feedback: "Approved by DQC committee.",
     });
+    setProcessing(false);
     navigate({ to: "/dqc" });
   };
 
   const reject = async () => {
-    if (!note.trim()) return alert("Please add a note explaining the issue.");
-    await supabase.from("papers").update({ status: "not_approved", dqc_note: note }).eq("id", id);
-    await supabase.from("notifications").insert({
-      recipient_email: paper.created_by_email || "faculty@somaiya.edu",
-      paper_id: id,
-      message: `Paper not approved — see DQC note: ${meta.courseName}`,
-    });
+    if (!note.trim()) {
+      alert("Please add a note explaining the required revisions.");
+      return;
+    }
+    setProcessing(true);
+    await updatePaperRecord(id, { status: "not_approved", dqc_feedback: note.trim() });
+    setProcessing(false);
     navigate({ to: "/dqc" });
   };
 
   const uploadSig = async (f: File) => {
     const url = await fileToDataUrl(f);
-    await supabase.from("papers").update({ dqc_signature_url: url }).eq("id", id);
+    await updatePaperRecord(id, { meta: { ...paper.meta, dqc_signature_url: url } });
     await load();
   };
 
-  // Analysis
+  // Analysis for the single selected set
   const bloomCounts: Record<string, number> = { Remember: 0, Understand: 0, Apply: 0 };
-  for (const q of set.questions) bloomCounts[q.bloom] = (bloomCounts[q.bloom] || 0) + 1;
-  const coMap = set.questions.map((q) => ({ key: q.key, co: q.co }));
+  for (const q of set.questions || []) {
+    if (q.bloom) {
+      bloomCounts[q.bloom] = (bloomCounts[q.bloom] || 0) + 1;
+    }
+  }
+
+  const coMap = (set.questions || []).map((q) => ({ key: q.key, co: q.co }));
+
   const unitCoverage: Record<string, number> = {};
-  for (const q of set.questions) unitCoverage[q.module] = (unitCoverage[q.module] || 0) + 1;
+  for (const q of set.questions || []) {
+    const mod = q.module || "General";
+    unitCoverage[mod] = (unitCoverage[mod] || 0) + 1;
+  }
+
+  const selectedSetName = getSetLabel(set, selectedSetIdx);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background pb-16">
       <AppHeader />
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-semibold">
-              {meta.courseName} ({meta.courseCode})
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              DQC Review · {meta.marks} marks · Sem {meta.semester}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <label className="inline-flex items-center gap-2 px-3 py-2 border border-border rounded-md text-sm hover:bg-accent cursor-pointer">
-              <Signature className="w-4 h-4" /> Add Signature
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && uploadSig(e.target.files[0])}
-              />
-            </label>
-            <button
-              onClick={approve}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md text-sm hover:bg-emerald-700"
-            >
-              <CheckCircle2 className="w-4 h-4" /> Approve
-            </button>
-            <button
-              onClick={() => setRejectOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-md text-sm hover:bg-destructive/90"
-            >
-              <XCircle className="w-4 h-4" /> Not Approve
-            </button>
+
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
+        {/* Navigation & Header */}
+        <div className="mb-4">
+          <Link
+            to="/dqc"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-3 transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to DQC Inbox
+          </Link>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card border border-border rounded-xl p-5 shadow-2xs">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  {meta.courseName} ({meta.courseCode})
+                </h1>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200">
+                  {meta.className || "SY"} DQC Review
+                </span>
+              </div>
+
+              <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 pt-1">
+                <span className="flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-foreground/70" />
+                  <b>Faculty:</b> {meta.designerName || paper.created_by_email}
+                </span>
+                <span>·</span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-foreground/70" />
+                  <b>Exam:</b> {meta.examName || "Internal Assessment"} ({meta.marks} marks)
+                </span>
+                <span>·</span>
+                <span>
+                  <b>Class:</b> {meta.className} · Sem {meta.semester}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="inline-flex items-center gap-1.5 px-3 py-2 border border-border bg-card rounded-lg text-xs font-medium hover:bg-accent cursor-pointer transition shadow-2xs">
+                <Signature className="w-3.5 h-3.5" />
+                {paper.meta?.dqc_signature_url ? "Update Signature" : "Add Signature"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && uploadSig(e.target.files[0])}
+                />
+              </label>
+
+              <button
+                disabled={processing}
+                onClick={approve}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition shadow-2xs disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Approve Paper
+              </button>
+
+              <button
+                disabled={processing}
+                onClick={() => setRejectOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg text-xs font-semibold transition shadow-2xs disabled:opacity-50"
+              >
+                <XCircle className="w-4 h-4" /> Request Revision
+              </button>
+            </div>
           </div>
         </div>
 
-        <PaperRenderer
-          meta={meta}
-          set={set}
-          diagrams={dmap}
-          signatureUrl={paper.dqc_signature_url}
-          setLabel="Selected Set"
-        />
+        {/* Question Paper Document */}
+        <div className="mb-8">
+          <PaperRenderer
+            meta={meta}
+            set={set}
+            diagrams={dmap}
+            signatureUrl={paper.meta?.dqc_signature_url}
+          />
+        </div>
 
-        <div className="grid md:grid-cols-3 gap-4 mt-6">
-          <AnalysisCard title="Bloom Analysis">
+        {/* Analytics for the selected set */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <AnalysisCard title="Bloom's Taxonomy Distribution">
             {Object.entries(bloomCounts).map(([k, v]) => (
-              <BarRow key={k} label={k} value={v} max={set.questions.length} />
+              <BarRow key={k} label={k} value={v} max={set.questions?.length || 1} />
             ))}
           </AnalysisCard>
-          <AnalysisCard title="CO Mapping">
-            <div className="text-xs space-y-1">
+
+          <AnalysisCard title="Course Outcome (CO) Mapping">
+            <div className="text-xs space-y-1 max-h-48 overflow-y-auto pr-1">
               {coMap.map((c) => (
-                <div key={c.key} className="flex justify-between border-b border-border py-1">
-                  <span>{c.key}</span>
-                  <span className="font-medium">{c.co}</span>
+                <div
+                  key={c.key}
+                  className="flex justify-between items-center border-b border-border/60 py-1"
+                >
+                  <span className="font-mono text-muted-foreground">{c.key}</span>
+                  <span className="font-medium px-2 py-0.5 rounded bg-muted text-foreground">
+                    {c.co}
+                  </span>
                 </div>
               ))}
             </div>
           </AnalysisCard>
-          <AnalysisCard title="Unit Coverage">
+
+          <AnalysisCard title="Unit / Module Coverage">
             {Object.entries(unitCoverage).map(([k, v]) => (
-              <BarRow key={k} label={k} value={v} max={set.questions.length} />
+              <BarRow key={k} label={k} value={v} max={set.questions?.length || 1} />
             ))}
           </AnalysisCard>
         </div>
-      </div>
+      </main>
 
+      {/* Reject / Revision Modal */}
       {rejectOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-3">Reject with note</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full shadow-lg space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">
+                Request Revision from Faculty
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Provide specific guidance on what needs to be changed before this paper can be
+                approved.
+              </p>
+            </div>
+
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full h-32 p-3 border border-border rounded-md bg-background text-sm"
-              placeholder="Explain what needs to change…"
+              className="w-full h-32 p-3 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-brand/40 text-foreground"
+              placeholder="E.g., Q2b should cover CO3 instead of CO2, or adjust Bloom level to 'Apply'..."
             />
-            <div className="flex justify-end gap-2 mt-4">
+
+            <div className="flex justify-end gap-2 pt-2">
               <button
+                type="button"
                 onClick={() => setRejectOpen(false)}
-                className="px-4 py-2 text-sm hover:bg-accent rounded-md"
+                className="px-4 py-2 text-xs font-medium hover:bg-accent rounded-lg border border-border text-foreground transition"
               >
                 Cancel
               </button>
               <button
+                type="button"
+                disabled={processing}
                 onClick={reject}
-                className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md text-sm"
+                className="px-4 py-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg text-xs font-semibold transition disabled:opacity-50"
               >
-                Send back
+                Send Revision Request
               </button>
             </div>
           </div>
@@ -200,22 +329,28 @@ function DqcReview() {
 
 function AnalysisCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card border border-border rounded-lg p-4">
-      <div className="font-semibold text-sm mb-3">{title}</div>
+    <div className="bg-card border border-border rounded-xl p-4 shadow-2xs">
+      <div className="font-semibold text-xs text-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+        <Layers className="w-3.5 h-3.5 text-brand" />
+        {title}
+      </div>
       {children}
     </div>
   );
 }
+
 function BarRow({ label, value, max }: { label: string; value: number; max: number }) {
   const pct = max ? (value / max) * 100 : 0;
   return (
-    <div className="mb-2">
+    <div className="mb-2.5">
       <div className="flex justify-between text-xs mb-1">
-        <span>{label}</span>
-        <span className="font-medium">{value}</span>
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-semibold text-foreground">
+          {value} <span className="text-[10px] text-muted-foreground">({Math.round(pct)}%)</span>
+        </span>
       </div>
       <div className="h-2 bg-muted rounded-full overflow-hidden">
-        <div className="h-full bg-brand" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-brand transition-all duration-300" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

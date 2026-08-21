@@ -1,7 +1,7 @@
 import type React from "react";
 import type { GeneratedSet } from "@/lib/paper.functions";
 import { getPattern, paperInstruction, paperTime, type PatternSlot } from "@/lib/paper-pattern";
-import logo from "@/assets/svv-logo.png.asset.json";
+import { SvvLogoSvg } from "@/components/Logo";
 
 export type PaperMeta = {
   examName?: string;
@@ -52,11 +52,7 @@ export function PaperRenderer({
     <div className="paper-page p-10 max-w-[820px] mx-auto shadow border border-border">
       {/* Header block */}
       <div className="flex items-center gap-4 border-b border-black pb-4 mb-4">
-        <img
-          src={logo.url}
-          alt="Somaiya Vidyavihar University"
-          className="h-16 w-auto object-contain shrink-0"
-        />
+        <SvvLogoSvg height={64} className="shrink-0" />
         <div className="flex-1 text-center">
           <div className="text-[10pt] tracking-widest">SOMAIYA VIDYAVIHAR UNIVERSITY</div>
           <div className="text-[14pt] font-bold">K J Somaiya Institute of Technology</div>

@@ -2,18 +2,18 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { useUser, type Role, roleHome } from "@/lib/auth";
 
-export function RoleGuard({ role, children }: { role: Role | Role[]; children: ReactNode }) {
+export function RoleGuard({ role, children }: { role: Role; children: ReactNode }) {
   const user = useUser();
   const navigate = useNavigate();
 
-  const allowedRoles = Array.isArray(role) ? role : [role];
-  const isAllowed = user ? allowedRoles.includes(user.role) : false;
+  const hasAccess =
+    user && (user.role === role || user.roles?.includes(role) || user.role === "hod");
 
   useEffect(() => {
-    if (user && !isAllowed) {
+    if (user && !hasAccess) {
       navigate({ to: roleHome(user.role) });
     }
-  }, [user, isAllowed, navigate]);
+  }, [user, hasAccess, navigate]);
 
   if (!user) {
     return (
@@ -22,12 +22,14 @@ export function RoleGuard({ role, children }: { role: Role | Role[]; children: R
       </div>
     );
   }
-  if (!isAllowed) {
+
+  if (!hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen text-muted-foreground text-sm">
         Redirecting…
       </div>
     );
   }
+
   return <>{children}</>;
 }

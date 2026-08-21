@@ -74,7 +74,16 @@ export async function exportPaperPdf(
     y,
     { align: "center" },
   );
-  y += 20;
+  y += 14;
+
+  const setNameHeader = set.setName || set.difficulty;
+  if (setNameHeader) {
+    doc.setFont("times", "bold");
+    doc.setFontSize(11);
+    doc.text(setNameHeader.toUpperCase(), pageW / 2, y, { align: "center" });
+    y += 14;
+  }
+  y += 6;
   doc.setDrawColor(0);
   doc.line(margin, y, pageW - margin, y);
   y += 12;
@@ -301,6 +310,21 @@ export async function exportPaperDocx(
         }),
       ],
     }),
+    ...(set.setName || set.difficulty
+      ? [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: (set.setName || set.difficulty || "").toUpperCase(),
+                bold: true,
+                size: 22,
+                font: "Times New Roman",
+              }),
+            ],
+          }),
+        ]
+      : []),
     new Paragraph({ children: [new TextRun({ text: "" })] }),
   ];
 
